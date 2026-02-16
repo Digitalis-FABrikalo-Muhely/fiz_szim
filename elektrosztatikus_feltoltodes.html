@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Elektrosztatikus Feltöltődés Szimuláció</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            margin: 0;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        /* --- FEJLÉC STÍLUSOK --- */
+        .header {
+            background-color: #2563eb;
+            color: white;
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 50;
+        }
+
+        .header h1 { margin: 0; font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+        .header h1 span { font-weight: 900; opacity: 0.8; font-size: 0.8rem; }
+        
+        .badge { background-color: #1d4ed8; padding: 4px 12px; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; }
+
+        .footer {
+            background-color: #0f172a;
+            padding: 12px 24px;
+            color: white;
+            font-size: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            opacity: 0.95;
+            font-family: monospace;
+            z-index: 50;
+        }
+
+        canvas {
+            border: 2px solid #e2e8f0;
+            border-radius: 20px;
+            background: #f1f5f9;
+            cursor: grab;
+        }
+        canvas:active {
+            cursor: grabbing;
+        }
+        
+        /* FÜGGŐLEGES VEZÉRLŐ DOKK A BAL OLDALON */
+        .control-dock {
+            pointer-events: auto;
+            background-color: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            padding: 12px;
+            border-radius: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .interactive-btn {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            width: 100%;
+        }
+
+        .interactive-btn:active {
+            transform: scale(0.95);
+        }
+
+        .instruction-box {
+            background-color: white;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 8px 24px;
+        }
+
+        #info-box {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 60;
+        }
+
+        @media (max-width: 640px) {
+            .control-dock {
+                padding: 8px;
+                border-radius: 16px;
+                left: 12px;
+            }
+            .interactive-btn span { display: none; } /* Mobilon csak ikonok, ha túl szűk */
+            .interactive-btn { padding: 10px; width: auto; }
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col">
+
+    <!-- FEJLÉC -->
+    <div class="header">
+        <div class="flex items-center gap-4">
+            <button onclick="location.href='index.html'" class="bg-white/10 hover:bg-white/20 p-2 rounded-lg transition-colors">
+                <i data-lucide="home" class="w-5 h-5"></i>
+            </button>
+            <h1><span>FIZIKA</span> ⚡ Elektrosztatikus erő</h1>
+        </div>
+        <div class="header-center font-black text-lg tracking-tighter opacity-80 hidden md:block">DigiFAB</div>
+        <div class="header-right">
+            <span class="badge">9. osztály</span>
+        </div>
+    </div>
+
+    <!-- UTASÍTÁSOK -->
+    <div class="instruction-box">
+        <div class="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-2">
+            <p class="text-slate-600 text-[13px] font-medium leading-tight">
+                <span class="font-black text-blue-600 uppercase text-[9px] tracking-widest block mb-0.5">Feladat</span>
+                Dörzsöld a lufit a pulóverhez, majd engedd el vagy vidd a falhoz!
+            </p>
+            <div class="flex gap-4 text-[9px] font-black uppercase tracking-wider">
+                <div class="flex items-center gap-2"><span class="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center text-white text-[10px]">+</span> Proton</div>
+                <div class="flex items-center gap-2"><span class="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-white text-[10px]">-</span> Elektron</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FŐ SZIMULÁCIÓS TERÜLET -->
+    <div class="flex-grow relative w-full h-full flex flex-col justify-center items-center p-4 overflow-hidden">
+        <canvas id="simCanvas"></canvas>
+        
+        <!-- MAGYARÁZAT PANEL (Lent középen) -->
+        <div id="info-box" class="hidden bg-white/95 p-5 rounded-2xl shadow-2xl backdrop-blur-md w-80 border border-slate-100 animate-in fade-in slide-in-from-bottom-4 duration-200">
+            <h3 class="font-black text-blue-900 text-[10px] uppercase tracking-[0.2em] mb-2 border-b border-slate-100 pb-1">Mi történik?</h3>
+            <p id="status-text" class="text-[13px] text-slate-700 leading-relaxed font-medium">A lufi és a pulóver is semleges. Azonos számú pozitív és negatív töltésük van.</p>
+        </div>
+
+        <!-- BAL OLDALI VEZÉRLŐ DOKK -->
+        <div class="absolute left-6 top-1/2 -translate-y-1/2 z-50">
+            <div class="control-dock">
+                <button id="toggle-charges-btn" onclick="toggleCharges()" class="interactive-btn bg-white border border-slate-200 hover:border-blue-400 text-slate-700 py-3 px-4 rounded-xl shadow-sm" title="Töltések megjelenítése">
+                    <i id="charge-icon" data-lucide="eye-off" class="w-5 h-5"></i>
+                    <span class="hidden sm:inline">Töltések</span>
+                </button>
+                
+                <button onclick="resetSimulation()" class="interactive-btn bg-slate-800 hover:bg-slate-900 text-white py-3 px-4 rounded-xl shadow-sm" title="Újrakezdés">
+                    <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+                    <span class="hidden sm:inline">Reset</span>
+                </button>
+                
+                <button onclick="toggleInfo()" class="interactive-btn bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-xl shadow-sm" title="Magyarázat">
+                    <i data-lucide="info" class="w-5 h-5"></i>
+                    <span class="hidden sm:inline">Infó</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LÁBLEC -->
+    <div class="footer">
+        <span>Digitális FABrikáló Műhely</span>
+        <span class="text-blue-400 font-black">.:henz:.</span>
+        <span>Henzel György</span>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const statusText = document.getElementById('status-text');
+        const infoBox = document.getElementById('info-box');
+
+        // Állapotváltozók
+        let width, height;
+        let scaleFactor = 1;
+        let isDragging = false;
+        let dragOffset = { x: 0, y: 0 };
+        let showCharges = false;
+
+        // Fizikai objektumok
+        let balloon = {
+            x: 0, y: 0, 
+            prevX: 0, prevY: 0, 
+            radius: 60, 
+            charges: [], 
+            vx: 0, vy: 0
+        };
+
+        let sweater = {
+            x: 0, y: 0, w: 240, h: 320, 
+            charges: [],
+            colorBase: '#475569', 
+            colorDark: '#334155',
+            colorLight: '#64748b'
+        };
+
+        let wall = {
+            x: 0, y: 0, w: 80, h: 0, 
+            charges: [],
+            color: '#cbd5e1' 
+        };
+
+        function toggleInfo() {
+            infoBox.classList.toggle('hidden');
+        }
+
+        function toggleCharges() {
+            showCharges = !showCharges;
+            const btn = document.getElementById('toggle-charges-btn');
+            const icon = document.getElementById('charge-icon');
+            
+            if (showCharges) {
+                btn.classList.add('bg-blue-50', 'border-blue-500', 'text-blue-700');
+                icon.setAttribute('data-lucide', 'eye');
+            } else {
+                btn.classList.remove('bg-blue-50', 'border-blue-500', 'text-blue-700');
+                icon.setAttribute('data-lucide', 'eye-off');
+            }
+            lucide.createIcons();
+        }
+
+        function init() {
+            resize(); 
+            resetSimulation(false); 
+            loop();
+        }
+
+        function resize() {
+            const container = canvas.parentElement;
+            width = canvas.width = container.clientWidth;
+            height = canvas.height = container.clientHeight;
+            
+            scaleFactor = Math.min(width / 800, height / 600);
+            scaleFactor = Math.max(0.6, Math.min(scaleFactor, 1.1));
+
+            updateObjectDimensions();
+            resetPositions();
+        }
+        
+        function updateObjectDimensions() {
+            sweater.w = 240 * scaleFactor;
+            sweater.h = 320 * scaleFactor;
+            balloon.radius = 60 * scaleFactor;
+            wall.w = width < 600 ? 60 : 120; 
+        }
+
+        function resetPositions() {
+            wall.x = width - wall.w;
+            wall.y = 0;
+            wall.h = height;
+
+            if (width > 600) {
+                sweater.x = width * 0.3; // Kicsit beljebb toltam, hogy ne zavarják a gombok
+            } else {
+                sweater.x = (width - wall.w) * 0.35;
+            }
+            sweater.y = height * 0.5;
+
+            if (!isDragging) {
+                 if (width > 600) {
+                    balloon.x = width * 0.65;
+                } else {
+                    balloon.x = (width - wall.w) * 0.8;
+                }
+                balloon.y = height * 0.35;
+                balloon.vx = 0;
+                balloon.vy = 0;
+                balloon.prevX = balloon.x;
+                balloon.prevY = balloon.y;
+            }
+        }
+
+        function resetSimulation(skipGenerate = false) {
+            updateObjectDimensions();
+            resetPositions();
+            
+            if (!skipGenerate) {
+                balloon.charges = generateCharges('circle', 12, 0, 0); 
+                sweater.charges = generateCharges('rect', 50, 0, 0); 
+                wall.charges = generateCharges('wall', 25, 0, 0);      
+                updateStatus("Semleges állapot. A tárgyak nem vonzzák egymást, mert töltésük kiegyenlített.");
+            }
+        }
+
+        function generateCharges(shape, count, offsetX, offsetY) {
+            let charges = [];
+            for(let i=0; i<count; i++) { 
+                let pos = getRandomPosInShape(shape, 'plus');
+                charges.push({ type: 'plus', ...pos, initialX: pos.relX, initialY: pos.relY });
+            }
+            for(let i=0; i<count; i++) { 
+                let pos = getRandomPosInShape(shape, 'minus');
+                charges.push({ type: 'minus', ...pos, initialX: pos.relX, initialY: pos.relY });
+            }
+            return charges;
+        }
+
+        function getRandomPosInShape(shape, type) {
+            let relX, relY;
+            if (shape === 'circle') {
+                const angle = Math.random() * Math.PI * 2;
+                const r = Math.sqrt(Math.random()) * (balloon.radius - (15 * scaleFactor));
+                relX = Math.cos(angle) * r;
+                relY = Math.sin(angle) * r;
+            } 
+            else if (shape === 'rect') {
+                const sw = sweater.w;
+                const sh = sweater.h;
+                let valid = false;
+                let attempts = 0;
+                while (!valid && attempts < 200) {
+                    const tempX = (Math.random() - 0.5) * (sw * 1.5); 
+                    const tempY = (Math.random() - 0.5) * sh;
+                    const torsoW = sw * 0.42; 
+                    const inTorso = (Math.abs(tempX) < torsoW / 2) && (tempY > -sh * 0.35 && tempY < sh * 0.4);
+                    const inLeftSleeve = (tempX > -sw * 0.68 && tempX < -sw * 0.42) && (tempY > -sh * 0.35 && tempY < -sh * 0.15);
+                    const inRightSleeve = (tempX > sw * 0.42 && tempX < sw * 0.68) && (tempY > -sh * 0.35 && tempY < -sh * 0.15);
+
+                    if (inTorso || inLeftSleeve || inRightSleeve) {
+                        relX = tempX; relY = tempY;
+                        if (type === 'plus' && Math.abs(relX) < sw * 0.28 && Math.abs(relY) < sh * 0.1) {
+                            valid = false; 
+                        } else { valid = true; }
+                    }
+                    attempts++;
+                }
+                if (!valid) { relX = 0; relY = sh * 0.2; }
+            } else if (shape === 'wall') {
+                relX = Math.random() * (wall.w - 30) + 15;
+                relY = Math.random() * (height - 60) + 30;
+            }
+            return { relX, relY };
+        }
+
+        function update() {
+            const dx = balloon.x - balloon.prevX;
+            const dy = balloon.y - balloon.prevY;
+            const speed = Math.hypot(dx, dy);
+            
+            if (isDragging && checkCollision(balloon, sweater)) {
+                if (speed > 1.5) {
+                    if (Math.random() < 0.3) {
+                        const electronIndex = sweater.charges.findIndex(c => c.type === 'minus');
+                        if (electronIndex !== -1) {
+                            const electron = sweater.charges.splice(electronIndex, 1)[0];
+                            const angle = Math.random() * Math.PI * 2;
+                            const r = Math.sqrt(Math.random()) * (balloon.radius - 10);
+                            electron.relX = Math.cos(angle) * r;
+                            electron.relY = Math.sin(angle) * r;
+                            balloon.charges.push(electron);
+                            updateStatus("Dörzsölés! A lufi elektronokat szerez (-), a pulóver pozitív (+) marad.");
+                        }
+                    }
+                }
+            }
+
+            balloon.prevX = balloon.x;
+            balloon.prevY = balloon.y;
+
+            const balloonNetCharge = getNetCharge(balloon);
+            if (balloonNetCharge < 0) { 
+                wall.charges.forEach(c => {
+                    if (c.type === 'minus') {
+                        const dist = Math.abs(balloon.x - (wall.x + c.relX));
+                        const influence = Math.max(0, 300 - dist) / 300;
+                        const targetX = c.initialX + (influence * 45); 
+                        c.relX += (targetX - c.relX) * 0.1;
+                    }
+                });
+            } else {
+                wall.charges.forEach(c => {
+                    if (c.type === 'minus') {
+                        c.relX += (c.initialX - c.relX) * 0.1;
+                    }
+                });
+            }
+
+            if (!isDragging) {
+                let fx = 0, fy = 0;
+                const distS = Math.hypot(balloon.x - sweater.x, balloon.y - sweater.y);
+                const distW = (wall.x) - (balloon.x + balloon.radius);
+                const isTouchingSweater = checkCollision(balloon, sweater);
+                const sweaterNet = getNetCharge(sweater);
+
+                const isStuckWall = (distW <= 4) && (balloonNetCharge <= -1);
+                const isStuckSweater = isTouchingSweater && (balloonNetCharge < 0 && sweaterNet > 0);
+
+                if (!isStuckWall && !isStuckSweater) {
+                    fy += 0.08 * scaleFactor;
+                    fx += Math.sin(Date.now() * 0.003) * 0.12 * scaleFactor;
+                }
+
+                if (balloonNetCharge < 0 && sweaterNet > 0) {
+                    if (isTouchingSweater) {
+                        balloon.vx = 0; balloon.vy = 0;
+                        updateStatus("A lufi (-) és a pulóver (+) ellentétes töltésűek, ezért vonzzák egymást.");
+                    } else {
+                        const minDist = 120 * scaleFactor;
+                        const effectiveDist = Math.max(distS, minDist); 
+                        const force = (Math.abs(balloonNetCharge * sweaterNet) / (effectiveDist * effectiveDist)) * 1400;
+                        const angle = Math.atan2(sweater.y - balloon.y, sweater.x - balloon.x);
+                        fx += Math.cos(angle) * force;
+                        fy += Math.sin(angle) * force;
+                    }
+                }
+
+                if (balloonNetCharge < 0 && distW < 200 * scaleFactor && !isTouchingSweater) {
+                    const effectiveWallDist = Math.max(distW, 10);
+                    fx += (Math.abs(balloonNetCharge) * 40) / (effectiveWallDist + 5);
+                }
+
+                balloon.vx += fx; balloon.vy += fy;
+                if (isStuckWall || isStuckSweater) { 
+                    balloon.vy = 0; 
+                    if (balloon.vx > 0) balloon.vx *= 0.5; 
+                } else { 
+                    balloon.vy *= 0.96; 
+                    balloon.vx *= 0.96;
+                }
+                
+                balloon.x += balloon.vx; balloon.y += balloon.vy;
+
+                if (balloon.x + balloon.radius >= wall.x) {
+                    balloon.x = wall.x - balloon.radius;
+                    if (balloonNetCharge <= -1) {
+                        balloon.vx = 0; balloon.vy = 0;
+                        updateStatus("A lufi odatapad a falhoz a töltésmegosztás miatt.");
+                    } else { balloon.vx *= -0.5; }
+                }
+            }
+
+            if (balloon.x < balloon.radius) { balloon.x = balloon.radius; balloon.vx = Math.abs(balloon.vx) * 0.5; }
+            if (balloon.y < balloon.radius) { balloon.y = balloon.radius; balloon.vy = Math.abs(balloon.vy) * 0.5; }
+            if (balloon.y > height - balloon.radius) { 
+                balloon.y = height - balloon.radius; 
+                balloon.vy = -Math.abs(balloon.vy) * 0.2; 
+                balloon.vx *= 0.8; 
+            }
+        }
+
+        function checkCollision(circle, rect) {
+            const distX = Math.abs(circle.x - rect.x);
+            const distY = Math.abs(circle.y - rect.y);
+            const tolerance = 20 * scaleFactor;
+            if (distX > (rect.w/2 + circle.radius - tolerance)) { return false; }
+            if (distY > (rect.h/2 + circle.radius - tolerance)) { return false; }
+            return true;
+        }
+
+        function getNetCharge(body) {
+            let plus = body.charges.filter(c => c.type === 'plus').length;
+            let minus = body.charges.filter(c => c.type === 'minus').length;
+            return plus - minus;
+        }
+
+        function updateStatus(text) {
+            if(statusText.innerText !== text) { statusText.innerText = text; }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, width, height);
+
+            ctx.fillStyle = wall.color;
+            ctx.fillRect(wall.x, wall.y, wall.w, wall.h);
+            
+            ctx.save();
+            ctx.translate(wall.x + wall.w/2, height/2);
+            ctx.rotate(-Math.PI/2);
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = `black ${40 * scaleFactor}px Inter`;
+            ctx.textAlign = 'center';
+            ctx.fillText("FAL", 0, 0);
+            ctx.restore();
+
+            if (showCharges) drawCharges(wall, wall.x, wall.y, false);
+            drawSweater3D(sweater);
+
+            let grad = ctx.createRadialGradient(balloon.x - balloon.radius * 0.3, balloon.y - balloon.radius * 0.3, balloon.radius * 0.1, balloon.x, balloon.y, balloon.radius);
+            grad.addColorStop(0, '#fde047');
+            grad.addColorStop(0.3, '#fbbf24');
+            grad.addColorStop(1, '#b45309');
+
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.ellipse(balloon.x, balloon.y, balloon.radius * 0.85, balloon.radius, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.moveTo(balloon.x, balloon.y + balloon.radius);
+            ctx.lineTo(balloon.x - 5, balloon.y + balloon.radius + 15);
+            ctx.lineTo(balloon.x + 5, balloon.y + balloon.radius + 15);
+            ctx.fillStyle = '#b45309'; 
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(balloon.x, balloon.y + balloon.radius + 15);
+            ctx.quadraticCurveTo(balloon.x + 20, balloon.y + balloon.radius + 60, balloon.x + 10, balloon.y + balloon.radius + 100);
+            ctx.strokeStyle = "#94a3b8";
+            ctx.stroke();
+
+            const net = getNetCharge(balloon);
+            if (net < 0) { ctx.shadowBlur = 20; ctx.shadowColor = "#facc15"; }
+            if (showCharges) drawCharges(balloon, balloon.x, balloon.y, true);
+            ctx.shadowBlur = 0;
+        }
+
+        function drawSweater3D(obj) {
+            const x = obj.x; const y = obj.y; const w = obj.w; const h = obj.h;
+            let gradBody = ctx.createLinearGradient(x - w/2, y - h/2, x + w/2, y + h/2);
+            gradBody.addColorStop(0, obj.colorLight); gradBody.addColorStop(0.5, obj.colorBase); gradBody.addColorStop(1, obj.colorDark);
+            ctx.fillStyle = gradBody;
+            
+            const nw = w * 0.23; const nd = h * 0.06; const sd = h * 0.09; const sl = w * 0.33; const swid = h * 0.17; const armpitY = h * 0.25;
+
+            ctx.beginPath();
+            ctx.moveTo(x - nw, y - h/2 + nd);
+            ctx.quadraticCurveTo(x - w/2 + (w*0.08), y - h/2, x - w/2, y - h/2 + sd);
+            ctx.lineTo(x - w/2 - sl, y - h/2 + sd + sl * 0.8);
+            ctx.lineTo(x - w/2 - sl + (w*0.1), y - h/2 + sd + sl * 0.8 + swid);
+            ctx.lineTo(x - w/2 + (w*0.06), y - h/2 + sd + armpitY);
+            ctx.lineTo(x - w/2 + (w*0.06), y + h/2 - (h*0.05));
+            ctx.quadraticCurveTo(x, y + h/2 + (h*0.05), x + w/2 - (w*0.06), y + h/2 - (h*0.05));
+            ctx.lineTo(x + w/2 - (w*0.06), y - h/2 + sd + armpitY);
+            ctx.lineTo(x + w/2 + sl - (w*0.1), y - h/2 + sd + sl * 0.8 + swid);
+            ctx.lineTo(x + w/2 + sl, y - h/2 + sd + sl * 0.8);
+            ctx.lineTo(x + w/2, y - h/2 + sd);
+            ctx.quadraticCurveTo(x + w/2 - (w*0.08), y - h/2, x + nw, y - h/2 + nd);
+            ctx.quadraticCurveTo(x, y - h/2 + nd + (h*0.08), x - nw, y - h/2 + nd);
+            ctx.fill();
+
+            ctx.fillStyle = 'rgba(255,255,255,0.9)';
+            ctx.font = `black ${24 * scaleFactor}px Inter`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('DigiFAB', x, y);
+            if (showCharges) drawCharges(obj, x, y, true);
+        }
+
+        function drawCharges(body, originX, originY, isCenteredOrigin) {
+            body.charges.forEach(c => {
+                let drawX, drawY;
+                if (isCenteredOrigin) { drawX = originX + c.relX; drawY = originY + c.relY; } 
+                else { drawX = originX + c.relX; drawY = c.relY; }
+                ctx.beginPath();
+                const radius = Math.max(5, 8 * scaleFactor);
+                ctx.arc(drawX, drawY, radius, 0, Math.PI * 2);
+                ctx.fillStyle = c.type === 'plus' ? '#ef4444' : '#3b82f6';
+                ctx.fill();
+                ctx.fillStyle = 'white';
+                ctx.font = `black ${Math.max(9, 13 * scaleFactor)}px Inter`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(c.type === 'plus' ? '+' : '-', drawX, drawY + 1);
+            });
+        }
+
+        function loop() { update(); draw(); requestAnimationFrame(loop); }
+
+        function onDown(e) {
+            const pos = getPos(e);
+            const dist = Math.hypot(pos.x - balloon.x, pos.y - balloon.y);
+            if (dist < balloon.radius + 20) {
+                isDragging = true;
+                dragOffset.x = balloon.x - pos.x;
+                dragOffset.y = balloon.y - pos.y;
+                balloon.vx = 0; balloon.vy = 0;
+                balloon.prevX = balloon.x; balloon.prevY = balloon.y;
+            }
+        }
+
+        function onMove(e) {
+            if (isDragging) {
+                const pos = getPos(e);
+                balloon.x = pos.x + dragOffset.x;
+                balloon.y = pos.y + dragOffset.y;
+            }
+        }
+
+        function onUp() { isDragging = false; }
+
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            if (e.touches) { return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top }; } 
+            else { return { x: e.clientX - rect.left, y: e.clientY - rect.top }; }
+        }
+
+        canvas.addEventListener('mousedown', onDown);
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); onDown(e); }, {passive: false});
+        window.addEventListener('touchmove', (e) => { if(isDragging) e.preventDefault(); onMove(e); }, {passive: false});
+        window.addEventListener('touchend', onUp);
+        window.addEventListener('resize', resize);
+
+        window.onload = init;
+    </script>
+</body>
+<button onclick="location.href='index.html'" style="
+    position: fixed; 
+    top: 10px; 
+    right: 140px; 
+    padding: 10px 10px; 
+    background: #FFF3eb; 
+    color: green; 
+    border: none; 
+    border-radius: 8px; 
+    cursor: pointer; 
+    z-index: 1000;
+    box-shadow: 0 2px 5px rgba(2,2,2,0.2);
+">🏠</button>
+</html>

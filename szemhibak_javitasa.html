@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Szemhibák javítása - DigiFAB</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            margin: 0;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        /* --- FEJLÉC ÉS LÁBLEC --- */
+        .header {
+            background-color: #2563eb;
+            color: white;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 50;
+        }
+
+        .header h1 { margin: 0; font-size: 1.15rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+        .header h1 span { font-weight: 900; opacity: 0.8; font-size: 0.85rem; }
+        
+        .badge { background-color: #1d4ed8; padding: 6px 16px; border-radius: 9999px; font-size: 0.8rem; font-weight: 700; }
+
+        .footer {
+            background-color: #0f172a;
+            padding: 20px;
+            color: white;
+            font-size: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            opacity: 0.95;
+            font-family: monospace;
+            z-index: 50;
+        }
+
+        /* --- TABS --- */
+        .tab-container {
+            display: flex;
+            background-color: #f1f5f9;
+            padding: 4px;
+            gap: 4px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            font-weight: 800;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: all 0.2s;
+            border-radius: 8px;
+            color: #64748b;
+            background: transparent;
+        }
+        .tab-btn.active {
+            color: #2563eb;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        /* --- LAYOUT --- */
+        .layout-wrapper {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 60px - 50px - 45px); /* Header - Footer - Tabs */
+            flex: 1;
+        }
+
+        @media (min-width: 1024px) {
+            .layout-wrapper { flex-direction: row; }
+            .sidebar { width: 380px; min-width: 380px; border-left: 1px solid #e2e8f0; }
+        }
+
+        .canvas-area {
+            flex: 1;
+            position: relative;
+            background-color: #f1f5f9;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+
+        .sidebar {
+            background-color: white;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-shadow: -4px 0 15px rgba(0,0,0,0.02);
+        }
+
+        /* --- UI ELEMEK --- */
+        .measurement-card {
+            background-color: #f8fafc;
+            border-radius: 16px;
+            padding: 16px;
+            border: 1px solid #e2e8f0;
+            border-left: 4px solid #2563eb;
+        }
+
+        .control-label {
+            display: block;
+            font-size: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #64748b;
+            margin-bottom: 8px;
+        }
+
+        .math-text { font-family: "Times New Roman", Times, serif; font-style: italic; text-transform: none !important; }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 999px;
+            appearance: none;
+            outline: none;
+            margin-bottom: 12px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #2563eb;
+            border: 3px solid white;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            padding: 10px 14px;
+            border-radius: 12px;
+            border: 1px solid #f1f5f9;
+            background-color: #f8fafc;
+            transition: all 0.2s;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #475569;
+        }
+        .checkbox-item:hover { background-color: #f1f5f9; border-color: #e2e8f0; }
+        input[type="checkbox"] { width: 18px; height: 18px; accent-color: #2563eb; }
+
+        .explanation-box {
+            background-color: #eff6ff;
+            border-radius: 16px;
+            padding: 16px;
+            border: 1px solid #dbeafe;
+            font-size: 0.8rem;
+            line-height: 1.6;
+            color: #1e3a8a;
+        }
+
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.7rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .status-ok { background-color: #dcfce7; color: #166534; }
+        .status-error { background-color: #fee2e2; color: #991b1b; }
+
+        .btn-reset {
+            width: 100%;
+            padding: 12px;
+            background-color: #f1f5f9;
+            color: #475569;
+            border-radius: 12px;
+            font-weight: 800;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        .btn-reset:hover { background-color: #e2e8f0; }
+
+        /* --- CANVAS ADATOK --- */
+        .canvas-info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-blur: 8px;
+            padding: 16px;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            pointer-events: none;
+            border: 1px solid #e2e8f0;
+            min-width: 220px;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen">
+
+    <!-- FEJLÉC -->
+    <div class="header">
+        <div class="header-left">
+            <h1><span>FIZIKA</span> 👁️ Szemhibák javítása</h1>
+        </div>
+        <div class="header-center font-black text-xl tracking-tighter opacity-80 hidden md:block">DigiFAB</div>
+        <div class="header-right">
+            <span class="badge">8. osztály</span>
+        </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tab-container">
+        <button class="tab-btn active" id="tabHyper" onclick="setMode('hypermetropia')">Távollátó szem</button>
+        <button class="tab-btn" id="tabMyopia" onclick="setMode('myopia')">Közellátó szem</button>
+    </div>
+
+    <div class="layout-wrapper">
+        <!-- Szimulációs terület -->
+        <div class="canvas-area">
+            <canvas id="opticsCanvas"></canvas>
+            
+            <div class="canvas-info space-y-3">
+                <div class="flex items-center justify-between gap-4">
+                    <span class="text-[10px] font-black text-slate-500 uppercase">Állapot</span>
+                    <span id="eye-status" class="status-badge status-error">Életlen kép</span>
+                </div>
+                <div class="flex items-center justify-between gap-4">
+                    <span class="text-[10px] font-black text-slate-500 uppercase">Fókuszpont</span>
+                    <span id="focus-info" class="text-xs font-bold text-slate-800">Retina mögött</span>
+                </div>
+            </div>
+
+            <!-- Interakció jelzés -->
+            <div class="absolute top-6 right-6 pointer-events-none">
+                <div class="bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full border border-slate-200 text-[10px] font-bold text-slate-500 flex items-center gap-2 shadow-sm">
+                    <i data-lucide="mouse-pointer-2" class="w-3 h-3 text-blue-600"></i> HÚZD A CSIGÁT A MOZGATÁSHOZ
+                </div>
+            </div>
+        </div>
+
+        <!-- Vezérlőpanel -->
+        <div class="sidebar">
+            <div class="control-group">
+                <span class="control-label">Mérési adatok</span>
+                <div class="measurement-card space-y-4">
+                    <div>
+                        <div class="flex justify-between text-[11px] font-bold mb-1">
+                            <span class="text-slate-500 uppercase">Tárgytávolság (<span class="math-text">t</span>)</span>
+                            <span class="text-blue-600 font-mono"><span id="dist-val">30</span> cm</span>
+                        </div>
+                        <input type="range" id="objectDist" min="15" max="80" value="30">
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-[11px] font-bold mb-1">
+                            <span class="text-slate-500 uppercase">Csiga mérete</span>
+                            <span class="text-slate-700 font-mono"><span id="size-val">40</span> px</span>
+                        </div>
+                        <input type="range" id="objectSize" min="20" max="80" value="40">
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <span class="control-label">Beállítások</span>
+                <div class="flex flex-col gap-2">
+                    <label class="checkbox-item">
+                        <input type="checkbox" id="glassesToggle">
+                        <span id="glassesLabel">Szemüveg</span>
+                    </label>
+
+                    <label class="checkbox-item">
+                        <input type="checkbox" id="symbolsToggle">
+                        <span>Lencsejelek használata</span>
+                    </label>
+                    
+                    <label class="checkbox-item">
+                        <input type="checkbox" id="showBlurToggle">
+                        <span>A szem tényleges látása</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="explanation-box" id="explanationText">
+                Betöltés...
+            </div>
+
+            <div class="mt-auto pt-4">
+                <button id="resetBtn" class="btn-reset">
+                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Alaphelyzet
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- LÁBLEC -->
+    <div class="footer">
+        <span>Digitális FABrikáló Műhely</span>
+        <span class="text-blue-500 font-black">.:henz:.</span>
+        <span>Henzel György</span>
+    </div>
+
+<script>
+    lucide.createIcons();
+
+    const canvas = document.getElementById('opticsCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    const distSlider = document.getElementById('objectDist');
+    const distVal = document.getElementById('dist-val');
+    const sizeSlider = document.getElementById('objectSize');
+    const sizeVal = document.getElementById('size-val');
+    const glassesToggle = document.getElementById('glassesToggle');
+    const symbolsToggle = document.getElementById('symbolsToggle');
+    const glassesLabel = document.getElementById('glassesLabel');
+    const blurToggle = document.getElementById('showBlurToggle');
+    const resetBtn = document.getElementById('resetBtn');
+    const eyeStatus = document.getElementById('eye-status');
+    const focusInfo = document.getElementById('focus-info');
+    const explanationText = document.getElementById('explanationText');
+
+    let width, height, centerX, centerY;
+    const eyeRadius = 80;
+    let mode = 'hypermetropia'; 
+    let isDragging = false;
+    
+    function init() {
+        resize();
+        window.addEventListener('resize', resize);
+        canvas.addEventListener('mousedown', startDragging);
+        canvas.addEventListener('touchstart', startDragging, { passive: false });
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('touchmove', handleMouseMove, { passive: false });
+        window.addEventListener('mouseup', stopDragging);
+        window.addEventListener('touchend', stopDragging);
+        requestAnimationFrame(animate);
+        updateUI();
+    }
+
+    function setMode(newMode) {
+        mode = newMode;
+        document.getElementById('tabHyper').classList.toggle('active', mode === 'hypermetropia');
+        document.getElementById('tabMyopia').classList.toggle('active', mode === 'myopia');
+        updateUI();
+        resetSettings();
+    }
+
+    function updateUI() {
+        if (mode === 'hypermetropia') {
+            glassesLabel.innerText = "Szemüveg (Gyűjtőlencse)";
+            explanationText.innerHTML = "<strong>Távollátás:</strong> A szemlencse túl gyenge, vagy a szemgolyó túl rövid. A sugarak a retina <strong>mögött</strong> találkoznának. Javítása <strong>gyűjtőlencsével</strong> történik.";
+        } else {
+            glassesLabel.innerText = "Szemüveg (Szórólencse)";
+            explanationText.innerHTML = "<strong>Közellátás:</strong> A szemlencse túl erős, vagy a szemgolyó túl hosszú. A sugarak a retina <strong>előtt</strong> találkoznak. Javítása <strong>szórólencsével</strong> történik.";
+        }
+    }
+
+    function resetSettings() {
+        distSlider.value = 30;
+        sizeSlider.value = 40;
+        glassesToggle.checked = false;
+        blurToggle.checked = false;
+        symbolsToggle.checked = false;
+    }
+
+    function resize() {
+        const parent = canvas.parentElement;
+        canvas.width = parent.clientWidth;
+        canvas.height = parent.clientHeight;
+        width = canvas.width;
+        height = canvas.height;
+        // Elrendezés javítása: szem jobbra tolva
+        centerX = width * (width > 800 ? 0.7 : 0.65);
+        centerY = height / 2;
+    }
+
+    function getMousePos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    function isOverSnail(pos) {
+        const t = parseFloat(distSlider.value);
+        const objX = centerX - t * 6;
+        const snailHeight = parseFloat(sizeSlider.value);
+        return (Math.abs(pos.x - objX) < snailHeight / 1.5 && 
+                pos.y < centerY && pos.y > centerY - snailHeight);
+    }
+
+    function startDragging(e) {
+        const pos = getMousePos(e);
+        if (isOverSnail(pos)) {
+            isDragging = true;
+            canvas.style.cursor = 'grabbing';
+            if (e.cancelable) e.preventDefault();
+        }
+    }
+
+    function handleMouseMove(e) {
+        const pos = getMousePos(e);
+        if (isDragging) {
+            if (e.cancelable) e.preventDefault();
+            let newT = (centerX - pos.x) / 6;
+            newT = Math.max(15, Math.min(80, newT));
+            distSlider.value = newT;
+            canvas.style.cursor = 'grabbing';
+        } else {
+            canvas.style.cursor = isOverSnail(pos) ? 'grab' : 'default';
+        }
+    }
+
+    function stopDragging() { 
+        isDragging = false; 
+        canvas.style.cursor = 'default';
+    }
+
+    resetBtn.addEventListener('click', resetSettings);
+
+    function animate() {
+        draw();
+        requestAnimationFrame(animate);
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, width, height);
+        const tCm = parseFloat(distSlider.value);
+        const tPx = tCm * 6;
+        distVal.innerText = Math.round(tCm);
+        const snailHeight = parseFloat(sizeSlider.value);
+        sizeVal.innerText = snailHeight;
+        const hasGlasses = glassesToggle.checked;
+        const showBlur = blurToggle.checked;
+        const showSymbols = symbolsToggle.checked;
+
+        const objX = centerX - tPx;
+        const objY = centerY;
+        
+        let focusX;
+        if (mode === 'hypermetropia') {
+            focusX = centerX + (hasGlasses ? 150 : 185); 
+        } else {
+            focusX = centerX + (hasGlasses ? 150 : 110); 
+        }
+        
+        const hornOffset = snailHeight * (45/60);
+        const objHornY = centerY - hornOffset;
+
+        const kPx = focusX - centerX;
+        const magnification = kPx / tPx;
+        const imgHornY = centerY + (hornOffset * magnification);
+
+        if (hasGlasses) {
+            eyeStatus.innerText = "Éles kép";
+            eyeStatus.className = "status-badge status-ok";
+            focusInfo.innerText = "Pontosan a retinán";
+        } else {
+            eyeStatus.innerText = "Életlen kép";
+            eyeStatus.className = "status-badge status-error";
+            focusInfo.innerText = mode === 'hypermetropia' ? "Retina mögött" : "Retina előtt";
+        }
+
+        drawOpticalAxis();
+        drawEye(centerX, centerY);
+        if (hasGlasses) drawGlasses(centerX - 40, centerY, mode, showSymbols);
+
+        // --- 1. TÁRGY (Csiga) ---
+        drawSnail(objX, objY, snailHeight, false, 0, 1.0, true, "#2563eb");
+
+        drawSunAndAnimatedRayTo(objX, objHornY);
+        drawAnimatedRays(objX, objHornY, centerX, centerY, focusX, imgHornY, hasGlasses, mode);
+
+        const imgHeight = snailHeight * magnification;
+
+        if (hasGlasses) {
+            // SZEMÜVEGGEL
+            drawSnail(centerX + 150, centerY, imgHeight, true, 0, 1.0, true, "#ef4444"); 
+        } else {
+            // SZEMÜVEG NÉLKÜL
+            if (showBlur) {
+                const blurAmount = Math.abs(focusX - (centerX + 150)) / 5;
+                drawSnail(centerX + 150, centerY, snailHeight * (150/tPx), true, blurAmount, 0.6, false); 
+            } else {
+                drawSnail(focusX, centerY, imgHeight, true, 0, 0.4, true, "#ef4444"); 
+            }
+        }
+    }
+
+    function drawSunAndAnimatedRayTo(targetX, targetY) {
+        const sunX = 60; const sunY = 60;
+        ctx.save();
+        ctx.beginPath(); ctx.fillStyle = "#fbbf24"; ctx.arc(sunX, sunY, 20, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = "#fbbf24"; ctx.lineWidth = 2;
+        for (let i = 0; i < 12; i++) {
+            const angle = (i * Math.PI * 2) / 12;
+            ctx.beginPath();
+            const r1 = 24, r2 = 32;
+            ctx.moveTo(sunX + Math.cos(angle)*r1, sunY + Math.sin(angle)*r1);
+            ctx.lineTo(sunX + Math.cos(angle)*r2, sunY + Math.sin(angle)*r2);
+            ctx.stroke();
+        }
+        ctx.beginPath(); ctx.strokeStyle = "rgba(251, 191, 36, 0.2)"; ctx.lineWidth = 2; ctx.moveTo(sunX, sunY); ctx.lineTo(targetX, targetY); ctx.stroke();
+        const dist = Math.sqrt((targetX-sunX)**2 + (targetY-sunY)**2);
+        const progress = (Date.now() / 7) % dist;
+        const ratio = progress / dist;
+        const curX = sunX + (targetX - sunX) * ratio;
+        const curY = sunY + (targetY - sunY) * ratio;
+        drawArrowHead(curX, curY, Math.atan2(targetY - sunY, targetX - sunX), "#fbbf24");
+        ctx.restore();
+    }
+
+    function drawAnimatedRays(objX, startY, eyeX, eyeY, focusX, focusY, hasGlasses, currentMode) {
+        const rayColor = "#facc15"; 
+        const lensTargetsY = [eyeY - 25, eyeY, eyeY + 25];
+        const glassesX = eyeX - 40;
+
+        lensTargetsY.forEach((targetY, index) => {
+            let path = [];
+            if (hasGlasses) {
+                const slopeToEye = (targetY - startY) / (eyeX - objX);
+                const gY = startY + slopeToEye * (glassesX - objX);
+                let eyeEntryY;
+                if (currentMode === 'hypermetropia') {
+                    eyeEntryY = targetY - (targetY - eyeY) * 0.15;
+                } else {
+                    eyeEntryY = targetY + (targetY - eyeY) * 0.2;
+                }
+                path = [{x: objX, y: startY}, {x: glassesX, y: gY}, {x: eyeX, y: eyeEntryY}, {x: focusX, y: focusY}];
+            } else {
+                path = [{x: objX, y: startY}, {x: eyeX, y: targetY}, {x: focusX, y: focusY}];
+            }
+            animateProjectileOnPath(path, rayColor, index * 0.5);
+        });
+        
+        ctx.beginPath(); ctx.arc(focusX, focusY, 5, 0, Math.PI*2); ctx.fillStyle = "#ef4444"; ctx.fill();
+    }
+
+    function animateProjectileOnPath(points, color, timeOffset = 0) {
+        if (points.length < 2) return;
+        ctx.save();
+        let totalLength = 0; let segments = [];
+        for(let i=0; i<points.length-1; i++) {
+            const dx = points[i+1].x - points[i].x; const dy = points[i+1].y - points[i].y;
+            const len = Math.sqrt(dx*dx + dy*dy); segments.push({len, dx, dy}); totalLength += len;
+        }
+        ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 1.2; ctx.globalAlpha = 0.4; ctx.moveTo(points[0].x, points[0].y);
+        for(let i=1; i<points.length; i++) ctx.lineTo(points[i].x, points[i].y); ctx.stroke(); 
+        
+        ctx.globalAlpha = 1.0;
+        const time = (Date.now() / 1000) + timeOffset; let dist = (time * 160) % totalLength;
+        let covered = 0;
+        for(let i=0; i<segments.length; i++) {
+            if (dist <= covered + segments[i].len) {
+                const ratio = (dist - covered) / segments[i].len;
+                const curX = points[i].x + segments[i].dx * ratio;
+                const curY = points[i].y + segments[i].dy * ratio;
+                drawArrowHead(curX, curY, Math.atan2(segments[i].dy, segments[i].dx), color);
+                break;
+            }
+            covered += segments[i].len;
+        }
+        ctx.restore();
+    }
+
+    function drawArrowHead(x, y, angle, color) {
+        ctx.save(); ctx.translate(x, y); ctx.rotate(angle); ctx.beginPath(); ctx.moveTo(-8, -5); ctx.lineTo(2, 0); ctx.lineTo(-8, 5); ctx.fillStyle = color; ctx.fill(); ctx.restore();
+    }
+
+    function drawOpticalAxis() {
+        ctx.save();
+        ctx.setLineDash([8, 8]); ctx.strokeStyle = "#cbd5e1"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, centerY); ctx.lineTo(width, centerY); ctx.stroke();
+        ctx.restore();
+    }
+
+    function drawEye(x, y) {
+        ctx.save();
+        // Szemgolyó
+        ctx.beginPath(); ctx.arc(x + 70, y, eyeRadius, 0, Math.PI * 2); ctx.fillStyle = "white"; ctx.fill(); ctx.strokeStyle = "#cbd5e1"; ctx.lineWidth = 1; ctx.stroke();
+        // Retina
+        ctx.beginPath(); ctx.arc(x + 70, y, eyeRadius - 2, -0.6, 0.6, false); ctx.strokeStyle = "#f87171"; ctx.lineWidth = 4; ctx.lineCap = "round"; ctx.stroke();
+        // Szemlencse
+        ctx.beginPath(); ctx.ellipse(x, y, 10, 35, 0, 0, Math.PI * 2); ctx.fillStyle = "rgba(191, 219, 254, 0.6)"; ctx.fill(); ctx.strokeStyle = "#2563eb"; ctx.lineWidth = 2; ctx.stroke();
+        ctx.restore();
+    }
+
+    function drawGlasses(x, y, currentMode, useSymbols) {
+        ctx.save();
+        const lensColor = "#2563eb";
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = lensColor;
+
+        if (!useSymbols) {
+            if (currentMode === 'hypermetropia') {
+                ctx.beginPath(); ctx.ellipse(x, y, 6, 45, 0, 0, Math.PI * 2);
+                ctx.fillStyle = "rgba(147, 197, 253, 0.3)"; ctx.fill(); ctx.stroke();
+            } else {
+                ctx.beginPath(); ctx.moveTo(x - 5, y - 45); ctx.quadraticCurveTo(x + 5, y, x - 5, y + 45);
+                ctx.lineTo(x + 5, y + 45); ctx.quadraticCurveTo(x - 5, y, x + 5, y - 45); ctx.closePath();
+                ctx.fillStyle = "rgba(147, 197, 253, 0.3)"; ctx.fill(); ctx.stroke();
+            }
+        } else {
+            ctx.beginPath(); ctx.moveTo(x, y - 50); ctx.lineTo(x, y + 50); ctx.stroke();
+            if (currentMode === 'hypermetropia') {
+                drawArrowHead(x, y - 50, -Math.PI/2, lensColor);
+                drawArrowHead(x, y + 50, Math.PI/2, lensColor);
+            } else {
+                drawArrowHead(x, y - 50, Math.PI/2, lensColor);
+                drawArrowHead(x, y + 50, -Math.PI/2, lensColor);
+            }
+        }
+        ctx.restore();
+    }
+
+    function drawSnail(x, y, h, isInverted, blur = 0, opacity = 1, showDot = true, dotColor = "#2563eb") {
+        ctx.save();
+        ctx.filter = (blur > 0) ? `blur(${blur}px)` : "none";
+        ctx.globalAlpha = opacity;
+        ctx.translate(x, y);
+        const s = h / 60;
+        if (isInverted) { 
+            ctx.scale(s, -s); 
+            if (opacity < 1) { ctx.filter += " grayscale(100%) brightness(1.2)"; }
+        } else { 
+            ctx.scale(-s, s); 
+        }
+        ctx.font = "60px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+        ctx.fillText("🐌", 22, 10);
+        if (showDot) { 
+            ctx.fillStyle = dotColor; ctx.beginPath(); ctx.arc(0, -45, 4, 0, Math.PI*2); ctx.fill(); 
+        }
+        ctx.restore();
+    }
+
+    init();
+</script>
+</body>
+<button onclick="location.href='index.html'" style="
+    position: fixed; 
+    top: 10px; 
+    right: 140px; 
+    padding: 10px 10px; 
+    background: #FFF3eb; 
+    color: green; 
+    border: none; 
+    border-radius: 8px; 
+    cursor: pointer; 
+    z-index: 1000;
+    box-shadow: 0 2px 5px rgba(2,2,2,0.2);
+">🏠</button>
+</html>

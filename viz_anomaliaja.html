@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>A Tó Titka - A Víz anomáliája</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- MathJax konfiguráció a szabályos fizikai képletekhez -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+            },
+            startup: {
+                pageReady: () => {
+                    return MathJax.startup.defaultPageReady().then(() => {
+                        console.log('MathJax inicializálva');
+                        // Kezdeti renderelés
+                        MathJax.typesetPromise();
+                    });
+                }
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        /* --- FEJLÉC ÉS LÁBLEC --- */
+        .header {
+            background-color: #2563eb;
+            color: white;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            z-index: 50;
+            flex-shrink: 0;
+        }
+
+        .header h1 { margin: 0; font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+        @media (min-width: 640px) { .header h1 { font-size: 1.25rem; } }
+        .header h1 span { font-weight: 900; opacity: 0.8; font-size: 0.8rem; letter-spacing: 0.05em; }
+        
+        .badge { background-color: #1d4ed8; padding: 6px 16px; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; }
+
+        .footer {
+            background-color: #0f172a;
+            padding: 16px 24px;
+            color: white;
+            font-size: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            opacity: 0.95;
+            font-family: monospace;
+            z-index: 50;
+            flex-shrink: 0;
+        }
+
+        /* --- LAYOUT --- */
+        .page-wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .layout-wrapper {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            flex-direction: column;
+        }
+
+        @media (min-width: 1024px) {
+            .layout-wrapper { flex-direction: row; }
+        }
+
+        .sidebar {
+            width: 100%;
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+            gap: 12px;
+            overflow-y: auto;
+            z-index: 40;
+        }
+
+        @media (min-width: 1024px) {
+            .sidebar { width: 380px; border-bottom: none; border-right: 1px solid #e2e8f0; padding: 24px; gap: 20px; }
+        }
+
+        .sim-area {
+            flex: 1;
+            position: relative;
+            background-color: #f0f9ff;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            cursor: crosshair;
+        }
+
+        /* --- SZIMULÁCIÓS ELEMEK --- */
+        .sky-area {
+            height: 25%;
+            width: 100%;
+            background: linear-gradient(to bottom, #38bdf8, #bae6fd);
+            position: relative;
+            z-index: 10;
+        }
+
+        .ground-area {
+            height: 75%;
+            width: 100%;
+            background-color: #3d2b1f;
+            position: relative;
+            z-index: 20;
+        }
+
+        .lake-mask-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 30;
+            pointer-events: none;
+        }
+
+        .lake-body {
+            position: absolute;
+            left: 15%;
+            right: 15%;
+            top: 0;
+            bottom: 8%;
+            z-index: 35;
+            clip-path: ellipse(50% 100% at 50% 0%);
+            overflow: hidden;
+            pointer-events: auto;
+            background-color: #1e3a8a;
+        }
+
+        .water-layer {
+            width: 100%;
+            height: 10%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 1s;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            position: relative;
+            z-index: 1;
+        }
+
+        .temp-label {
+            font-size: 10px;
+            font-weight: 800;
+            color: rgba(255,255,255,0.25);
+            font-style: italic;
+            pointer-events: none;
+        }
+
+        /* Parti növényzet */
+        .shore-plants {
+            position: absolute;
+            top: -40px;
+            height: 45px;
+            width: 15%;
+            z-index: 45;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 2px;
+            overflow: visible;
+        }
+
+        .plant {
+            display: inline-block;
+            transform-origin: bottom;
+            line-height: 1;
+            user-select: none;
+        }
+
+        @keyframes wiggle {
+            0%, 100% { transform: rotate(-3deg); }
+            50% { transform: rotate(3deg); }
+        }
+        .animate-wiggle { animation: wiggle 3s ease-in-out infinite; }
+
+        /* Halak stílusa */
+        .fish {
+            position: absolute;
+            font-size: 40px;
+            transition: opacity 1s, transform 0.8s ease-in-out;
+            pointer-events: none;
+            z-index: 10;
+            user-select: none;
+        }
+
+        /* Eszközök */
+        .tool-overlay {
+            position: absolute;
+            pointer-events: none;
+            z-index: 100;
+            display: none;
+            transform: translate(-50%, -50%);
+        }
+
+        .magnifier {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            border: 6px solid #334155;
+            background: #fff;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .thermometer-visual {
+            background: white;
+            border: 4px solid #ef4444;
+            padding: 10px 18px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transform: translateY(-50%);
+        }
+
+        /* Animációk */
+        @keyframes wave-move { 0% { transform: translateX(0); } 50% { transform: translateX(-2.5%); } 100% { transform: translateX(0); } }
+        .animate-wave { animation: wave-move 5s ease-in-out infinite; }
+
+        @keyframes gas-random {
+            0% { transform: translate(0, 0); }
+            33% { transform: translate(8px, -12px); }
+            66% { transform: translate(-10px, 6px); }
+            100% { transform: translate(0, 0); }
+        }
+        .animate-gas { animation: gas-random 2.5s infinite ease-in-out; }
+
+        /* Slider Custom */
+        input[type=range] { -webkit-appearance: none; width: 100%; height: 8px; background: #e2e8f0; border-radius: 999px; outline: none; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; background: #2563eb; cursor: pointer; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
+
+        /* MODAL */
+        .modal {
+            display: none; 
+            position: fixed; 
+            inset: 0; 
+            background: rgba(15, 23, 42, 0.92); 
+            z-index: 200; 
+            align-items: center; 
+            justify-content: center; 
+            padding: 16px; 
+            backdrop-filter: blur(10px);
+        }
+
+        .modal-content {
+            background: white; 
+            border-radius: 2rem; 
+            width: 100%; 
+            max-width: 600px; 
+            max-height: 85vh; 
+            padding: 24px; 
+            position: relative; 
+            border: 6px solid #dbeafe; 
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .scrollable-content {
+            overflow-y: auto;
+            flex: 1;
+            padding-right: 8px;
+            margin: 16px 0;
+            min-height: 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="page-wrapper">
+    <header class="header">
+        <div class="header-left">
+            <h1><span>FIZIKA</span> ❄️ A Víz anomáliája</h1>
+        </div>
+        <div class="font-black text-xl tracking-tighter opacity-80 hidden md:block">DigiFAB</div>
+        <div class="header-right">
+            <span class="badge">7. osztály</span>
+        </div>
+    </header>
+
+    <div class="layout-wrapper">
+        <aside class="sidebar">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                    <i data-lucide="settings-2" class="w-5 h-5"></i>
+                </div>
+                <h2 class="text-lg font-black text-slate-800 uppercase tracking-tight">Kezelőpult</h2>
+            </div>
+
+            <div class="space-y-4">
+                <div class="p-4 bg-blue-950 text-white rounded-2xl shadow-xl border-b-4 border-blue-800">
+                    <div class="flex justify-between items-center opacity-70 mb-2">
+                        <!-- JAVÍTOTT JELÖLÉS: Különválasztva a nagybetűs szövegtől, hogy a ró ne legyen nagy Ró (P) -->
+                        <span class="text-[9px] font-bold tracking-widest flex gap-1">
+                            <span class="uppercase">Sűrűség</span>
+                            <span>($ \rho $)</span>
+                        </span>
+                        <span class="text-[9px] font-bold uppercase tracking-widest">Jégvastagság</span>
+                    </div>
+                    <div class="flex justify-between items-end">
+                        <div class="text-2xl font-mono font-black tabular-nums">
+                            <span id="densityVal">999.8</span>
+                            <small class="text-[11px] opacity-80 ml-1">$ \frac{\text{kg}}{\text{m}^3} $</small>
+                        </div>
+                        <div class="text-xl font-mono font-bold text-cyan-400">
+                            <span id="iceVal">0</span>
+                            <small class="text-[10px] opacity-80 ml-1">cm</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 shadow-inner">
+                    <div class="flex justify-between items-center mb-3">
+                        <label class="text-[10px] font-black text-slate-500 tracking-widest flex items-center gap-1">
+                            <i data-lucide="thermometer-sun" class="w-4 h-4 text-slate-500 mr-1"></i> 
+                            <span class="uppercase">Hőmérséklet</span> <span>($ t $)</span>
+                        </label>
+                        <span id="airTempDisplay" class="text-3xl font-black text-orange-600 tabular-nums">20 °C</span>
+                    </div>
+                    <input type="range" id="tempSlider" min="-10" max="30" value="20">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <button id="toggleMagnifier" class="p-3 rounded-xl border-4 border-slate-100 flex flex-col items-center gap-1 transition-all hover:bg-slate-50 text-slate-400">
+                        <i data-lucide="search" class="w-6 h-6"></i>
+                        <span class="text-[9px] font-black uppercase text-slate-800">Nagyító</span>
+                    </button>
+                    <button id="toggleThermometer" class="p-3 rounded-xl border-4 border-slate-100 flex flex-col items-center gap-1 transition-all hover:bg-slate-50 text-slate-400">
+                        <i data-lucide="thermometer" class="w-6 h-6"></i>
+                        <span class="text-[9px] font-black uppercase text-slate-800">Hőmérő</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-2">
+                <button id="explanationBtn" onclick="showExplanation()" class="w-full py-3 bg-blue-100 text-blue-700 rounded-xl font-black border-2 border-blue-200 shadow-sm hover:bg-blue-200 transition-all active:scale-95 uppercase text-xs tracking-widest flex items-center justify-center gap-2">
+                    <i data-lucide="book-open" class="w-4 h-4"></i> Fizikai magyarázat
+                </button>
+            </div>
+
+            <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-[11px] text-blue-900 leading-relaxed mt-auto hidden lg:block shadow-sm">
+                <h3 class="font-black mb-1 uppercase flex items-center gap-2 text-blue-700 tracking-tight">
+                    <i data-lucide="info" class="w-4 h-4 text-blue-700"></i> Útmutató
+                </h3>
+                Figyeld a halak viselkedését! Fagy esetén a mélybe húzódnak, de amint felolvad a jég, újra felúsznak a felszín felé.
+            </div>
+        </aside>
+
+        <main class="sim-area" id="simContainer">
+            <div class="sky-area">
+                <div id="sunMoon" class="absolute right-12 top-6 w-14 h-14 rounded-full transition-all duration-1000 bg-orange-300 shadow-[0_0_30px_orange]"></div>
+            </div>
+
+            <div class="ground-area">
+                <div class="absolute top-0 left-0 w-full h-2 bg-[#16a34a] z-10 shadow-sm"></div>
+                
+                <div class="shore-plants" style="left: 0;">
+                    <span class="plant text-5xl animate-wiggle" style="height: 60px;">🌾</span>
+                    <span class="plant text-3xl animate-wiggle" style="height: 35px; animation-delay: 0.2s; transform: scaleX(-1);">🌿</span>
+                    <span class="plant text-6xl animate-wiggle" style="height: 70px; animation-delay: 0.5s;">🌾</span>
+                    <span class="plant text-4xl animate-wiggle" style="height: 45px; animation-delay: 0.8s;">🎋</span>
+                </div>
+                <div class="shore-plants" style="right: 0;">
+                    <span class="plant text-4xl animate-wiggle" style="height: 48px; transform: scaleX(-1);">🌿</span>
+                    <span class="plant text-7xl animate-wiggle" style="height: 85px; animation-delay: 0.3s;">🌾</span>
+                    <span class="plant text-5xl animate-wiggle" style="height: 55px; animation-delay: 0.6s; transform: scaleX(-1);">🌾</span>
+                </div>
+
+                <div class="lake-mask-overlay">
+                    <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <path d="M 15,0 C 20,60 35,95 50,95 C 65,95 80,60 85,0 L 100,0 L 100,100 L 0,100 L 0,0 Z" fill="#2d1b0f" />
+                    </svg>
+                </div>
+
+                <div class="lake-body" id="lakeBody">
+                    <div id="iceOverlay" class="absolute left-0 right-0 top-0 bg-cyan-50/80 backdrop-blur-[2px] z-20 border-b border-white transition-all duration-300 pointer-events-none" style="height: 0;">
+                        <div class="w-full h-full opacity-40 bg-[radial-gradient(circle,_#fff_1px,_transparent_1px)] bg-[size:10px_10px]"></div>
+                    </div>
+                    
+                    <div id="layersContainer" class="w-full h-full relative pointer-events-none"></div>
+                    <div id="fishBox" class="absolute inset-0 pointer-events-none"></div>
+                </div>
+
+                <div id="waveOverlay" class="absolute left-[15%] right-[15%] top-0 h-4 z-40 overflow-hidden pointer-events-none opacity-20">
+                    <svg viewBox="0 0 100 10" preserveAspectRatio="none" class="w-full h-full fill-white animate-wave">
+                        <path d="M0 5 Q 12 2, 25 5 T 50 5 T 75 5 T 100 5 V 10 H 0 Z" />
+                    </svg>
+                </div>
+            </div>
+
+            <div id="magnifierOverlay" class="tool-overlay">
+                <div class="magnifier" id="magContent"></div>
+            </div>
+
+            <div id="thermometerOverlay" class="tool-overlay">
+                <div class="thermometer-visual">
+                    <i data-lucide="thermometer" class="text-red-600 w-6 h-6"></i>
+                    <div class="flex flex-col">
+                        <span class="text-[8px] font-black text-slate-400 uppercase leading-none">Hőmérséklet ($ t $)</span>
+                        <span id="thermometerVal" class="font-mono font-black text-xl text-slate-800 tabular-nums">20.0 °C</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <footer class="footer">
+        <span>Digitális FABrikáló Műhely</span>
+        <span class="text-blue-500 font-black tracking-widest uppercase">.:henz:.</span>
+        <span>Henzel György</span>
+    </footer>
+</div>
+
+<!-- MAGYARÁZAT MODAL -->
+<div id="explanationModal" class="modal">
+    <div class="modal-content">
+        <button onclick="closeModal('explanationModal')" class="absolute top-6 right-6 p-2 text-slate-300 hover:text-red-500 transition-colors">
+            <i data-lucide="x-circle" class="w-8 h-8"></i>
+        </button>
+        <h2 class="text-3xl font-black text-blue-900 mb-4 uppercase tracking-tight italic">A Víz anomáliája</h2>
+        <div class="scrollable-content text-slate-700 leading-relaxed text-sm md:text-base pr-2" id="explanationText">
+            <p class="mb-4">A víz viselkedése eltér szinte minden más anyagtól: ezt hívjuk a <strong>víz anomáliájának</strong>. Míg a legtöbb folyadék hűlés közben folyamatosan összehúzódik és sűrűsége ($ \rho $) nő, a víz csak $ t = 4^\circ\text{C} $-ig viselkedik így.</p>
+            
+            <div class="bg-blue-50 p-4 mb-4 rounded-2xl border-l-4 border-blue-500 shadow-sm">
+                <h3 class="font-black text-blue-800 uppercase text-xs mb-2">Mi történik hűléskor?</h3>
+                <ul class="list-disc pl-5 space-y-2">
+                    <li><strong>$ t = 4^\circ\text{C} $-ig:</strong> A víz hűl, összehúzódik, sűrűsége ($ \rho $) nő, ezért lesüllyed a tó aljára. Ezen a hőmérsékleten a legnagyobb a sűrűsége: $ \rho \approx 1000 \frac{\text{kg}}{\text{m}^3} $.</li>
+                    <li><strong>$ t = 4^\circ\text{C} $ alatt:</strong> A víz tágulni kezd, sűrűsége ($ \rho $) csökken, ezért a felszínen marad.</li>
+                    <li><strong>$ t = 0^\circ\text{C} $-on:</strong> Megfagy. Mivel a jég sűrűsége ($ \rho_{\text{jég}} \approx 917 \frac{\text{kg}}{\text{m}^3} $) kisebb a vízénél, úszik a felszínen.</li>
+                </ul>
+            </div>
+
+            <h3 class="font-black text-slate-800 uppercase text-xs mb-2">Miért nem fagy be a tó alja?</h3>
+            <p>Mivel a $ t = 4^\circ\text{C} $-os víz a legsűrűbb, ez gyűlik össze a tó legmélyebb pontjain. A felszínen kialakuló jégpáncél ráadásul kiváló hőszigetelő, így megakadályozza, hogy a tó mélyebb rétegei tovább hűljenek a környezet felé.</p>
+            
+            <p class="mt-4">Ez a jelenség teszi lehetővé a vízi élővilág túlélését: a halak a tó fenekén, a biztonságos $ t = 4^\circ\text{C} $-os vízben vészelik át a telet, még akkor is, ha a felszínen kemény mínuszok vannak.</p>
+        </div>
+        <button onclick="closeModal('explanationModal')" class="w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-lg shadow-xl hover:bg-blue-700 mt-2 transition-all active:scale-95 uppercase tracking-widest shrink-0">Értem!</button>
+    </div>
+</div>
+
+<script>
+    // Biztonságos MathJax típusítás
+    function runMathJax(elementId) {
+        if (window.MathJax && window.MathJax.typesetPromise) {
+            const el = elementId ? document.getElementById(elementId) : document.body;
+            window.MathJax.typesetPromise([el]).catch(err => console.warn('MathJax error:', err));
+        }
+    }
+
+    // Inicializálás, ha a DOM kész
+    window.addEventListener('DOMContentLoaded', () => {
+        lucide.createIcons();
+        init();
+        setInterval(update, 50);
+        // Kezdeti sidebar típusítás
+        setTimeout(() => runMathJax(), 500);
+    });
+
+    const state = {
+        airTemp: 20,
+        waterLayers: Array(10).fill(15),
+        iceThickness: 0, 
+        magActive: false,
+        thermActive: false,
+        mouseX: 50,
+        mouseY: 50
+    };
+
+    const fishData = [
+        { id: 1, x: 25, y: 35, type: '🐟', vx: 0.1, vy: 0.05, targetVx: 0.1, targetVy: 0.05 },
+        { id: 2, x: 75, y: 45, type: '🐠', vx: -0.1, vy: 0.03, targetVx: -0.1, targetVy: 0.03 },
+        { id: 3, x: 45, y: 65, type: '🐡', vx: 0.08, vy: -0.02, targetVx: 0.08, targetVy: -0.02 },
+        { id: 4, x: 35, y: 20, type: '🐟', vx: -0.06, vy: 0.05, targetVx: -0.06, targetVy: 0.05 },
+        { id: 5, x: 80, y: 55, type: '🐠', vx: 0.07, vy: 0.04, targetVx: 0.07, targetVy: 0.04 }
+    ];
+
+    function getDensity(t) {
+        if (t <= 0) return 917;
+        return 1000 - 0.05 * Math.pow(t - 4, 2);
+    }
+
+    function getWaterColor(temp, index) {
+        if (state.iceThickness > (index * 0.1)) return 'rgba(215, 245, 255, 0.4)';
+        if (temp <= 4.2) return 'rgba(12, 35, 90, 0.95)';
+        if (temp <= 12) return 'rgba(40, 110, 230, 0.75)';
+        return 'rgba(110, 195, 255, 0.6)';
+    }
+
+    function init() {
+        const layers = document.getElementById('layersContainer');
+        layers.innerHTML = '';
+        state.waterLayers.forEach((t, i) => {
+            const d = document.createElement('div');
+            d.className = 'water-layer';
+            d.innerHTML = `<div class="temp-label"><span>${t.toFixed(1)} °C</span> <span class="ml-4 opacity-10 font-normal">${(i*0.6).toFixed(1)} m</span></div>`;
+            layers.appendChild(d);
+        });
+
+        const fishBox = document.getElementById('fishBox');
+        fishData.forEach(f => {
+            const d = document.createElement('div');
+            d.id = `f-${f.id}`;
+            d.className = 'fish';
+            d.innerText = f.type;
+            fishBox.appendChild(d);
+        });
+    }
+
+    function update() {
+        if (state.airTemp < 0) {
+            const tempAbs = Math.abs(state.airTemp);
+            const targetMaxIceMeters = tempAbs * 0.025; 
+            const growthFactor = tempAbs * 0.00015;
+            if (state.iceThickness < targetMaxIceMeters) {
+                state.iceThickness = Math.min(targetMaxIceMeters, state.iceThickness + growthFactor);
+            } else if (state.iceThickness > targetMaxIceMeters) {
+                state.iceThickness = Math.max(targetMaxIceMeters, state.iceThickness - 0.0005);
+            }
+        } else {
+            state.iceThickness = Math.max(0, state.iceThickness - state.airTemp * 0.001);
+        }
+
+        let next = [...state.waterLayers];
+        const target = state.iceThickness > 0 ? 0 : state.airTemp;
+        next[0] += (target - next[0]) * 0.15;
+        for (let i = 1; i < 10; i++) next[i] += (next[i-1] - next[i]) * 0.05;
+
+        for (let j = 0; j < 2; j++) {
+            for (let i = 0; i < 9; i++) {
+                if (getDensity(next[i]) > getDensity(next[i+1])) {
+                    let tmp = next[i]; next[i] = next[i+1]; next[i+1] = tmp;
+                }
+            }
+        }
+
+        if (next[9] < 4) next[9] = 4;
+        if (next[8] < 4) next[8] = 3.9;
+        state.waterLayers = next;
+
+        fishData.forEach(f => {
+            const isFreezing = state.iceThickness > 0.05;
+            const targetY = isFreezing ? (85 + (f.id * 2) % 10) : (20 + (f.id * 7) % 35);
+            const speed = isFreezing ? 0.2 : 1.3;
+
+            if (!isFreezing && Math.random() > 0.985) {
+                f.targetVx = (Math.random() - 0.5) * 0.45;
+                f.targetVy = (Math.random() - 0.5) * 0.18;
+            }
+
+            f.vx += (isFreezing ? (Math.random() - 0.5) * 0.02 - f.vx : f.targetVx - f.vx) * 0.05;
+            f.vy += ((targetY - f.y) * 0.01 - f.vy) * 0.05;
+
+            f.x += f.vx * speed;
+            f.y += f.vy * speed;
+
+            if (f.x < 5 || f.x > 95) { f.vx *= -1; f.targetVx *= -1; }
+            if (f.y < 15 || f.y > 90) { f.vy *= -1; f.targetVy *= -1; }
+
+            const div = document.getElementById(`f-${f.id}`);
+            if (div) {
+                div.style.left = f.x + '%';
+                div.style.top = f.y + '%';
+                div.style.transform = `translate(-50%, -50%) scaleX(${f.vx > 0 ? -1 : 1})`;
+                div.style.opacity = state.iceThickness > 0.1 ? '0.7' : '1';
+            }
+        });
+
+        renderUI();
+    }
+
+    function renderUI() {
+        const layers = document.querySelectorAll('.water-layer');
+        state.waterLayers.forEach((t, i) => {
+            if(layers[i]) {
+                layers[i].style.backgroundColor = getWaterColor(t, i);
+                layers[i].querySelector('span').innerText = t.toFixed(1) + ' °C';
+            }
+        });
+
+        const densityEl = document.getElementById('densityVal');
+        const iceEl = document.getElementById('iceVal');
+        if (densityEl) densityEl.innerText = getDensity(state.waterLayers[0]).toFixed(1);
+        if (iceEl) iceEl.innerText = (state.iceThickness * 100).toFixed(0);
+        
+        const display = document.getElementById('airTempDisplay');
+        if (display) {
+            display.innerText = state.airTemp + ' °C';
+            display.className = state.airTemp <= 0 ? 'text-3xl font-black text-blue-600 tabular-nums' : 'text-3xl font-black text-orange-600 tabular-nums';
+        }
+
+        const sunMoon = document.getElementById('sunMoon');
+        if (sunMoon) {
+            sunMoon.className = `absolute right-12 top-8 w-14 h-14 rounded-full transition-all duration-1000 ${state.airTemp > 0 ? 'bg-orange-300 shadow-[0_0_30px_orange]' : 'bg-white shadow-[0_0_15px_white]'}`;
+        }
+
+        const iceO = document.getElementById('iceOverlay');
+        const waveO = document.getElementById('waveOverlay');
+        if (iceO && waveO) {
+            if (state.iceThickness > 0) {
+                iceO.style.display = 'block';
+                iceO.style.height = (state.iceThickness / 0.6 * 10) + '%';
+                waveO.style.display = 'none';
+            } else {
+                iceO.style.height = '0';
+                waveO.style.display = 'block';
+            }
+        }
+
+        const mag = document.getElementById('magnifierOverlay');
+        const therm = document.getElementById('thermometerOverlay');
+        if (state.magActive) {
+            mag.style.display = 'block';
+            mag.style.left = state.mouseX + '%';
+            mag.style.top = state.mouseY + '%';
+            renderMagnifier();
+        } else if (mag) mag.style.display = 'none';
+
+        if (state.thermActive) {
+            therm.style.display = 'block';
+            therm.style.left = state.mouseX + '%';
+            therm.style.top = state.mouseY + '%';
+            document.getElementById('thermometerVal').innerText = getTempAtMouse().toFixed(1) + ' °C';
+        } else if (therm) therm.style.display = 'none';
+    }
+
+    function getTempAtMouse() {
+        if (state.mouseY < 25) return state.airTemp;
+        const relY = (state.mouseY - 25) / 75;
+        const index = Math.min(9, Math.max(0, Math.floor(relY * 10)));
+        return state.waterLayers[index];
+    }
+
+    function renderMagnifier() {
+        const content = document.getElementById('magContent');
+        if (!content) return;
+        const temp = getTempAtMouse();
+        const isIce = state.iceThickness > ((state.mouseY - 25) * 0.6 / 75) && state.mouseY >= 25;
+        
+        let html = '';
+        if (state.mouseY < 25) {
+            html = '<div class="relative w-full h-full overflow-hidden">';
+            for(let i=0; i<10; i++) html += `<div class="absolute w-2 h-2 bg-slate-300 rounded-full animate-gas" style="left:${Math.random()*80+10}%; top:${Math.random()*80+10}%; animation-delay:${i*0.2}s"></div>`;
+            html += '<div class="absolute top-4 w-full text-center text-blue-900 text-[10px] font-black uppercase tracking-widest">Levegő (Gáz)</div></div>';
+        } else if (isIce) {
+            html = '<div class="grid grid-cols-4 gap-6 p-4 animate-pulse">';
+            for(let i=0; i<16; i++) html += '<div class="w-4 h-4 bg-cyan-400 rounded-full border-2 border-white shadow-sm"></div>';
+            html += '</div><div class="absolute top-4 w-full text-center text-blue-900 text-[10px] font-black uppercase tracking-widest">Jég (Kristály)</div>';
+        } else if (Math.abs(temp - 4) < 1) {
+            html = '<div class="flex flex-wrap justify-center gap-1 p-4">';
+            for(let i=0; i<35; i++) html += '<div class="w-3 h-3 bg-blue-800 rounded-full shadow-sm"></div>';
+            html += '</div><div class="absolute top-4 w-full text-center text-blue-900 text-[10px] font-black uppercase tracking-widest">4 °C (Sűrű)</div>';
+        } else {
+            html = '<div class="flex flex-wrap justify-center gap-4 p-4">';
+            for(let i=0; i<18; i++) html += '<div class="w-4 h-4 bg-blue-400 rounded-full animate-bounce shadow-md"></div>';
+            html += '</div><div class="absolute top-4 w-full text-center text-blue-900 text-[10px] font-black uppercase tracking-widest">Meleg víz</div>';
+        }
+        content.innerHTML = html;
+    }
+
+    document.getElementById('tempSlider').addEventListener('input', e => state.airTemp = parseInt(e.target.value));
+    document.getElementById('simContainer').addEventListener('mousemove', e => {
+        const r = e.currentTarget.getBoundingClientRect();
+        state.mouseX = ((e.clientX - r.left) / r.width) * 100;
+        state.mouseY = ((e.clientY - r.top) / r.height) * 100;
+    });
+
+    document.getElementById('toggleMagnifier').addEventListener('click', function() {
+        state.magActive = !state.magActive;
+        this.className = `p-3 rounded-xl border-4 transition-all ${state.magActive ? 'border-blue-600 bg-blue-50 text-blue-800 shadow-md' : 'border-slate-100 text-slate-400'}`;
+    });
+
+    document.getElementById('toggleThermometer').addEventListener('click', function() {
+        state.thermActive = !state.thermActive;
+        this.className = `p-3 rounded-xl border-4 transition-all ${state.thermActive ? 'border-red-600 bg-red-50 text-red-800 shadow-md' : 'border-slate-100 text-slate-400'}`;
+    });
+
+    function showExplanation() { 
+        document.getElementById('explanationModal').style.display = 'flex'; 
+        runMathJax('explanationModal');
+    }
+    
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+</script>
+</body>
+<button onclick="location.href='index.html'" style="
+    position: fixed; 
+    top: 10px; 
+    right: 140px; 
+    padding: 10px 10px; 
+    background: #FFF3eb; 
+    color: green; 
+    border: none; 
+    border-radius: 8px; 
+    cursor: pointer; 
+    z-index: 1000;
+    box-shadow: 0 2px 5px rgba(2,2,2,0.2);
+">🏠</button>
+</html>

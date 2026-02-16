@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fizika Labor: Az Erő</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            overflow-x: hidden;
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .active-tab-btn {
+            background-color: white;
+            color: #2563eb;
+            border-bottom: 2px solid #2563eb;
+        }
+
+        .slider-blue::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #2563eb;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+
+        .simulation-area { touch-action: none; }
+        .vector-canvas { touch-action: none; cursor: crosshair; }
+
+        .header {
+            background-color: #2563eb;
+            color: white;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 { margin: 0; font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+        .header h1 span { font-weight: 900; opacity: 0.8; font-size: 0.9rem; }
+        .badge { background-color: #1d4ed8; padding: 6px 16px; border-radius: 9999px; font-size: 0.8rem; font-weight: 700; }
+
+        .spring-coil { fill: none; stroke: #1e293b; stroke-width: 2.5; }
+        .draggable-figure { touch-action: none; user-select: none; }
+
+        .speech-bubble {
+            position: absolute;
+            top: -40px;
+            background: white;
+            border: 2px solid currentColor;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-weight: 900;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+        }
+
+        .speech-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 8px 8px 0;
+            border-style: solid;
+            border-color: currentColor transparent transparent transparent;
+        }
+
+        .ball-elastic { transform-origin: bottom; transition: transform 0.05s linear; }
+        .clay-deform { transform-origin: bottom; transition: transform 0.05s linear; }
+        .puck-glow-stop { filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.9)); }
+        .puck-glow-turn { filter: drop-shadow(0 0 12px rgba(245, 158, 11, 0.9)); }
+        .ice-surface { fill: #f0f9ff; stroke: #cbd5e1; stroke-width: 4; }
+        
+        .deform-floor { 
+            width: 100%; 
+            height: 12px; 
+            background: linear-gradient(to bottom, #94a3b8, #64748b); 
+            border-radius: 20px; 
+            z-index: 5; 
+        }
+
+        #press-plate { 
+            cursor: grab; 
+            touch-action: none; 
+            z-index: 100;
+            user-select: none;
+        }
+        #press-plate:active { cursor: grabbing; }
+        
+        #rink-overlay { touch-action: none; }
+        #touch-overlay-v { touch-action: none; }
+
+        .clay-block {
+            background: linear-gradient(145deg, #a16207, #78350f);
+            border-radius: 12px 12px 4px 4px;
+            box-shadow: 
+                inset 4px 4px 8px rgba(255,255,255,0.1),
+                inset -4px -4px 8px rgba(0,0,0,0.4),
+                0 4px 6px rgba(0,0,0,0.2);
+            border: 2px solid #451a03;
+            position: relative;
+        }
+        
+        .clay-block::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 20%;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 10px 10px 0 0;
+            pointer-events: none;
+        }
+
+        /* --- ANIMÁCIÓK --- */
+        .animating-kick #kick-ball {
+            animation: deform-kick 1.2s ease-in-out forwards;
+        }
+
+        @keyframes deform-kick {
+            0% { transform: scale(1); }
+            40% { transform: scale(0.65, 1.15) translateX(20px); }
+            100% { transform: scale(1); }
+        }
+
+        .shard-pop {
+            animation: shard-pop-anim 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes shard-pop-anim {
+            0% { transform: scale(0) translate(0, 0); opacity: 0; }
+            100% { transform: scale(1) translate(var(--tw-translate-x), var(--tw-translate-y)); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="text-slate-800 select-none">
+
+    <div class="min-h-screen p-4 md:p-8">
+        <div class="max-w-6xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+            
+            <div class="header">
+                <div class="header-left"><h1><span>FIZIKA</span> ⚡ Az Erő</h1></div>
+                <div class="header-center font-black text-xl tracking-tighter opacity-80">DigiFAB</div>
+                <div class="header-right"><span class="badge">8. osztály</span></div>
+            </div>
+
+            <!-- Fő navigáció -->
+            <div class="flex bg-slate-100 border-b border-slate-200 overflow-x-auto">
+                <button onclick="switchTab('vector')" id="tab-btn-vector" class="tab-btn active-tab-btn flex items-center gap-2 px-6 py-4 text-sm font-semibold transition-all whitespace-nowrap">
+                    <i data-lucide="move-up-right" class="w-4 h-4"></i> Erő ábrázolása
+                </button>
+                <button onclick="switchTab('effects')" id="tab-btn-effects" class="tab-btn flex items-center gap-2 px-6 py-4 text-sm font-semibold transition-all whitespace-nowrap text-slate-500 hover:text-blue-500">
+                    <i data-lucide="zap" class="w-4 h-4"></i> Erő hatásai
+                </button>
+                <button onclick="switchTab('newton3')" id="tab-btn-newton3" class="tab-btn flex items-center gap-2 px-6 py-4 text-sm font-semibold transition-all whitespace-nowrap text-slate-500 hover:text-blue-500">
+                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Erőhatás kölcsönössége
+                </button>
+                <button onclick="switchTab('measure')" id="tab-btn-measure" class="tab-btn flex items-center gap-2 px-6 py-4 text-sm font-semibold transition-all whitespace-nowrap text-slate-500 hover:text-blue-500">
+                    <i data-lucide="scale" class="w-4 h-4"></i> Erő mérése
+                </button>
+            </div>
+
+            <div class="p-6">
+
+                <!-- 1. ERŐ ÁBRÁZOLÁSA -->
+                <div id="tab-vector" class="tab-content active space-y-6">
+                    <div id="vector-explanation-box" class="hidden bg-amber-50 border-2 border-amber-200 p-5 rounded-2xl shadow-sm">
+                        <h3 class="font-bold text-amber-900 mb-2 text-lg text-center underline">Az erő ábrázolása</h3>
+                        <p class="text-sm text-amber-800 leading-relaxed text-justify">
+                            Az erő vektormennyiség: van támadáspontja, iránya és nagysága. <br>
+                            Lépték: <b>1 cm hossznak 1 Newton (N) felel meg</b>.
+                        </p>
+                    </div>
+                    <div class="bg-slate-50 py-6 rounded-2xl border border-slate-100 px-6 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div class="hidden md:block w-32"></div>
+                            <div class="text-2xl md:text-3xl font-black text-blue-800 tracking-widest">1 cm = 1 N</div>
+                            <button onclick="toggleVectorExplanation()" class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition shadow-md shrink-0">
+                                <i data-lucide="help-circle" class="w-4 h-4"></i> Magyarázat
+                            </button>
+                        </div>
+                        <div class="flex justify-center gap-8 font-mono text-lg font-bold text-blue-600 border-t border-slate-200 pt-4">
+                            <span id="display-force">F = 5.0 N</span>
+                            <span id="display-angle">α = 0°</span>
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-6">
+                        <div class="bg-slate-50 rounded-xl p-2 flex items-center justify-center relative border border-dashed border-slate-300 min-h-[420px] overflow-hidden">
+                            <svg width="800" height="400" viewBox="0 0 800 400" class="vector-canvas" id="vector-svg">
+                                <defs>
+                                    <pattern id="grid-vector" width="37.8" height="37.8" patternUnits="userSpaceOnUse" x="400" y="200"><path d="M 37.8 0 L 0 0 0 37.8" fill="none" stroke="#e2e8f0" stroke-width="1"/></pattern>
+                                    <marker id="arrowhead-blue-v" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#2563eb" /></marker>
+                                </defs>
+                                <rect width="800" height="400" fill="url(#grid-vector)" />
+                                <line x1="0" y1="200" x2="800" y2="200" stroke="#cbd5e1" stroke-width="1" />
+                                <line x1="400" y1="0" x2="400" y2="400" stroke="#cbd5e1" stroke-width="1" />
+                                <line id="t-point-line" x1="400" y1="180" x2="400" y2="220" stroke="#1e3a8a" stroke-width="4" />
+                                <text id="t-label" x="415" y="235" font-size="28" font-weight="900" fill="#1e3a8a">T</text>
+                                <line id="vector-arrow" x1="400" y1="200" x2="589" y2="200" stroke="#2563eb" stroke-width="5" marker-end="url(#arrowhead-blue-v)" />
+                                <g id="vector-ticks"></g>
+                                <rect id="touch-overlay-v" width="800" height="400" fill="transparent" style="cursor: crosshair;" />
+                            </svg>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-6 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                            <div class="space-y-4">
+                                <label class="text-xs font-bold text-slate-500 uppercase tracking-widest block">Erő nagysága (F)</label>
+                                <input type="range" id="input-force" min="0" max="10" step="0.1" value="5" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer slider-blue">
+                            </div>
+                            <div class="space-y-4">
+                                <label class="text-xs font-bold text-slate-500 uppercase tracking-widest block">Irány (α)</label>
+                                <input type="range" id="input-angle" min="0" max="360" value="0" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer slider-blue">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. ERŐ HATÁSAI -->
+                <div id="tab-effects" class="tab-content space-y-6">
+                    <div class="flex gap-2 p-1 bg-slate-100 rounded-xl overflow-x-auto">
+                        <button onclick="switchSubLab('motion')" id="sub-btn-motion" class="flex-1 py-3 px-4 rounded-lg text-xs font-black uppercase tracking-widest transition-all bg-white text-blue-600 shadow-sm border-b-2 border-blue-600">Mozgató hatás</button>
+                        <button onclick="switchSubLab('deformation')" id="sub-btn-deformation" class="flex-1 py-3 px-4 rounded-lg text-xs font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-white/50">Deformáló hatás</button>
+                        <button onclick="switchSubLab('synthesis')" id="sub-btn-synthesis" class="flex-1 py-3 px-4 rounded-lg text-xs font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-white/50">Összetett hatás</button>
+                    </div>
+
+                    <!-- Mozgató hatás -->
+                    <div id="sub-motion" class="sub-tab-content space-y-4">
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-4">
+                            <div class="bg-blue-50 border-l-4 border-blue-500 p-3 rounded-lg text-xs text-blue-800 leading-relaxed font-medium">
+                                <span id="motion-instruction">Válassz funkciót! Kattints A TEST MOZGÁSBA HOZÁSA gombra a kezdéshez.</span>
+                            </div>
+                            <div id="motion-explanation-box" class="hidden bg-slate-50 p-3 rounded-lg text-[11px] text-slate-600 border border-slate-200 animate-in fade-in duration-300">
+                                <b>Elmélet:</b> Mozgató hatás akkor lép fel, ha az erő megváltoztatja a test sebességét vagy mozgásirányát.
+                            </div>
+                            <div class="flex flex-wrap gap-2 items-center justify-between">
+                                <div class="flex gap-2">
+                                    <button onclick="resetPuck()" class="p-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition shadow-sm"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
+                                    <button id="friction-toggle" onclick="toggleFriction()" class="px-3 py-2 bg-emerald-100 text-emerald-700 rounded-lg text-[10px] font-black uppercase tracking-widest border border-emerald-200">Súrlódás: KI</button>
+                                </div>
+                                <div class="flex flex-wrap gap-2">
+                                    <button onclick="setMotionScenario('start')" id="m-btn-start" class="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg text-[10px] font-black uppercase border border-blue-200">A test mozgásba hozása</button>
+                                    <button onclick="setMotionScenario('stop')" id="m-btn-stop" disabled class="px-3 py-2 bg-red-100 text-red-700 rounded-lg text-[10px] font-black uppercase border border-red-200 opacity-40">A mozgó test megállítása</button>
+                                    <button onclick="setMotionScenario('turn')" id="m-btn-turn" disabled class="px-3 py-2 bg-amber-100 text-amber-700 rounded-lg text-[10px] font-black uppercase border border-amber-200 opacity-40">A mozgás irányának megváltoztatása</button>
+                                    <button onclick="toggleMotionExplanation()" class="flex items-center gap-2 px-3 py-2 bg-slate-600 text-white rounded-lg text-[10px] font-black uppercase hover:bg-slate-700 transition shadow-sm"><i data-lucide="help-circle" class="w-3.5 h-3.5"></i> Magyarázat</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="relative bg-slate-200 rounded-3xl border-4 border-slate-300 shadow-inner overflow-hidden min-h-[400px]" id="rink-container">
+                            <svg id="rink-svg" width="100%" height="400" viewBox="0 0 800 400" class="w-full">
+                                <defs><linearGradient id="ice-grad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#f0f9ff" /><stop offset="100%" style="stop-color:#e0f2fe" /></linearGradient><marker id="arrow-hit" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#ef4444" /></marker></defs>
+                                <rect x="5" y="5" width="790" height="390" rx="60" ry="60" class="ice-surface" fill="url(#ice-grad)" />
+                                <line x1="400" y1="5" x2="400" y2="395" stroke="#ef4444" stroke-width="4" opacity="0.3"/><line x1="280" y1="5" x2="280" y2="395" stroke="#2563eb" stroke-width="4" opacity="0.3"/><line x1="520" y1="5" x2="520" y2="395" stroke="#2563eb" stroke-width="4" opacity="0.3"/>
+                                <circle cx="400" cy="200" r="60" fill="none" stroke="#2563eb" stroke-width="2" opacity="0.3"/><circle cx="400" cy="200" r="5" fill="#ef4444" opacity="0.3"/>
+                                <g id="deflect-point" opacity="0"><circle cx="0" cy="0" r="25" fill="rgba(245, 158, 11, 0.2)" stroke="#f59e0b" stroke-width="2" stroke-dasharray="4" /><circle cx="0" cy="0" r="4" fill="#f59e0b" /></g>
+                                <g id="puck-group" transform="translate(400, 200)"><circle id="puck-circle" r="25" fill="#1e293b" filter="drop-shadow(0 4px 4px rgba(0,0,0,0.4))" /><circle r="20" fill="none" stroke="#475569" stroke-width="2" /><text y="5" font-size="12" fill="white" font-weight="900" text-anchor="middle">PUK</text></g>
+                                <line id="hit-arrow" x1="400" y1="200" x2="400" y2="200" stroke="#ef4444" stroke-width="4" marker-end="url(#arrow-hit)" opacity="0" />
+                                <rect id="rink-overlay" width="800" height="400" fill="transparent" class="cursor-crosshair" style="touch-action: none;" />
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- Deformáló hatás -->
+                    <div id="sub-deformation" class="sub-tab-content hidden space-y-6">
+                        <div class="flex flex-wrap gap-4 items-center justify-between">
+                            <div class="flex gap-2 bg-slate-100 p-1 rounded-2xl">
+                                <button onclick="setDeformObject('ball')" id="def-btn-ball" class="px-6 py-3 bg-white border-2 border-blue-500 rounded-xl flex items-center gap-3 transition-all shadow-sm">
+                                    <span class="text-2xl">⚽</span>
+                                    <div class="text-left"><p class="text-[10px] font-black uppercase leading-tight">Gumilabda</p><p class="text-[8px] text-blue-500 font-bold uppercase tracking-tighter">Rugalmas</p></div>
+                                </button>
+                                <button onclick="setDeformObject('clay')" id="def-btn-clay" class="px-6 py-3 bg-white border border-slate-200 rounded-xl flex items-center gap-3 transition-all opacity-60">
+                                    <div class="w-8 h-6 bg-amber-800 rounded-t-lg shadow-sm"></div>
+                                    <div class="text-left"><p class="text-[10px] font-black uppercase leading-tight">Gyurma</p><p class="text-[8px] text-amber-600 font-bold uppercase tracking-tighter">Maradandó</p></div>
+                                </button>
+                                <button onclick="setDeformObject('glass')" id="def-btn-glass" class="px-6 py-3 bg-white border border-slate-200 rounded-xl flex items-center gap-3 transition-all opacity-60">
+                                    <span class="text-2xl">💎</span>
+                                    <div class="text-left"><p class="text-[10px] font-black uppercase leading-tight">Gyémánt</p><p class="text-[8px] text-red-500 font-bold uppercase tracking-tighter">Merev</p></div>
+                                </button>
+                            </div>
+                            <button onclick="toggleDeformExplanation()" class="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition shadow-md">
+                                <i data-lucide="help-circle" class="w-4 h-4"></i> Magyarázat
+                            </button>
+                        </div>
+                        
+                        <div class="bg-slate-50 rounded-3xl p-8 flex flex-col items-center border border-slate-200 relative overflow-hidden" style="height: 550px;">
+                            <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-xl w-full text-xs text-amber-900 shadow-sm z-10">
+                                <p class="font-bold uppercase mb-1 flex items-center gap-2"><i data-lucide="info" class="w-4 h-4"></i> Interakció:</p>
+                                <span id="deform-instruction-text">Húzd lefelé a sötét prést a tárgy összenyomásához!</span>
+                            </div>
+
+                            <div class="absolute bottom-8 right-8 bg-white/95 backdrop-blur px-6 py-4 rounded-2xl shadow-2xl border border-slate-200 z-[110]">
+                                <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Nyomóerő</div>
+                                <div id="deform-force-val" class="text-4xl font-black text-blue-600 font-mono tracking-tighter">F = 0.0 N</div>
+                            </div>
+
+                            <div id="deform-explanation-box" class="hidden absolute top-20 left-4 right-4 z-[120] bg-blue-900/95 text-white p-5 rounded-2xl shadow-2xl animate-in fade-in zoom-in border border-blue-400">
+                                <h4 class="font-black uppercase mb-2 flex items-center gap-2"><i data-lucide="book-open" class="w-4 h-4"></i> Tudományos háttér</h4>
+                                <p id="deform-desc-text" class="text-sm leading-relaxed"></p>
+                                <button onclick="toggleDeformExplanation()" class="mt-4 px-4 py-2 bg-blue-500 hover:bg-blue-400 rounded-lg text-xs font-bold uppercase transition">Bezárás</button>
+                            </div>
+
+                            <div id="deform-interactive-area" class="relative flex-1 w-full flex flex-col items-center justify-end pb-12 overflow-visible">
+                                <div id="press-plate" class="absolute w-72 h-10 bg-slate-800 rounded-lg shadow-xl flex items-center justify-center border-b-4 border-slate-900" style="top: 20px; left: 50%; transform: translateX(-50%);">
+                                    <div class="w-16 h-1 bg-slate-600 rounded-full shadow-inner"></div>
+                                </div>
+                                
+                                <div class="relative w-full flex flex-col items-center justify-end" style="height: 380px;">
+                                    <div id="obj-ball" class="text-[200px] leading-none ball-elastic select-none z-10 flex items-center justify-center" style="margin-bottom: -10px;">⚽</div>
+                                    <div id="obj-clay" class="hidden w-64 h-32 clay-block clay-deform z-10" style="margin-bottom: -5px;"></div>
+                                    <div id="obj-glass" class="hidden relative w-full flex flex-col items-center justify-end z-10" style="height: 250px; margin-bottom: -5px;">
+                                        <div id="glass-body" class="text-[250px] leading-none select-none transition-opacity duration-150 absolute bottom-0">💎</div>
+                                        <div id="glass-shards" class="hidden absolute inset-0 w-full h-full pointer-events-none">
+                                        </div>
+                                    </div>
+                                    <div class="deform-floor shadow-xl"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Összetett hatás -->
+                    <div id="sub-synthesis" class="sub-tab-content hidden">
+                        <div class="bg-slate-900 rounded-3xl p-8 min-h-[400px] flex flex-col items-center justify-center relative overflow-hidden">
+                             <div class="absolute top-4 left-4 flex items-center gap-2"><span class="flex h-2 w-2 rounded-full bg-red-500 animate-pulse"></span><span class="text-[9px] font-black text-white uppercase tracking-widest">Super Slow-Mo Mode</span></div>
+                            
+                            <div id="kick-scene" class="flex items-center justify-center relative w-full h-48">
+                                <div id="kick-ball-container" class="relative z-10">
+                                    <div id="kick-ball" class="text-8xl">⚽</div>
+                                </div>
+                                <div id="kick-foot" class="text-8xl absolute" style="transform: translateX(-220px)">👞</div>
+                            </div>
+
+                            <button id="btn-start-kick" onclick="startSynthesis()" class="mt-16 px-8 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-blue-500 transition shadow-xl border-b-4 border-blue-800 active:border-b-0 active:translate-y-1">Lövés Indítása</button>
+                            <div id="kick-explanation" class="hidden mt-8 max-w-md bg-white/10 backdrop-blur p-4 rounded-xl border border-white/20 text-white text-xs leading-relaxed text-center animate-in fade-in duration-500">Az erő hatására a labda előbb deformálódik, majd mozgásba jön (emelkedik és lassan forog).</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. ERŐHATÁS KÖLCSÖNÖSSÉGE -->
+                <div id="tab-newton3" class="tab-content space-y-6">
+                    <div id="newton-explanation-box-main" class="hidden bg-blue-50 border-2 border-blue-200 p-5 rounded-2xl shadow-sm">
+                        <h3 class="font-bold text-blue-900 mb-2 text-lg text-center underline">A hatás-ellenhatás törvénye</h3>
+                        <p class="text-sm text-blue-800 leading-relaxed text-justify">Az erőhatás kölcsönös: ha az 'A' test hat a 'B' testre, akkor a 'B' test is hat az 'A' testre azonos nagyságú, de ellentétes irányú erővel.</p>
+                    </div>
+                    <div class="flex justify-between items-center bg-blue-50 p-4 rounded-xl border border-blue-100 shadow-sm">
+                        <div class="flex flex-col"><p class="text-sm text-blue-800 font-bold uppercase">Interakció: Hatás-Ellenhatás</p></div>
+                        <div class="flex gap-2">
+                            <button onclick="toggleNewtonExplanationMain()" class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition shadow-md"><i data-lucide="help-circle" class="w-4 h-4"></i> Magyarázat</button>
+                            <button onclick="resetNewton3()" class="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-700 transition shadow-md"><i data-lucide="rotate-ccw" class="w-4 h-4"></i> Alaphelyzet</button>
+                        </div>
+                    </div>
+                    <div id="newton-sim" class="simulation-area flex items-center justify-center min-h-[420px] bg-slate-100 rounded-3xl relative overflow-hidden border-2 border-slate-200">
+                        <div class="absolute bottom-12 left-5 right-5 h-2 bg-slate-300 rounded-full"></div>
+                        
+                        <div id="figureA" class="draggable-figure absolute bottom-[15%] -translate-x-1/2 flex flex-col items-center cursor-grab" style="left: 25%;">
+                            <div class="absolute -top-16 bg-blue-600 text-white px-4 py-1.5 rounded-full text-sm font-black shadow-lg ring-4 ring-white">A</div>
+                            <div id="bubbleA" class="speech-bubble text-blue-600 border-blue-600">0 N</div>
+                            <div class="text-[130px] leading-none z-10 pointer-events-none" style="transform: scaleX(-1); margin-bottom: -62px;">🚶</div>
+                            <div class="text-[96px] leading-none drop-shadow-md opacity-90 -translate-y-[45px]" style="transform: rotate(-41deg) scaleX(-1);">🛹</div>
+                        </div>
+                        
+                        <div id="figureB" class="draggable-figure absolute bottom-[15%] -translate-x-1/2 flex flex-col items-center cursor-grab" style="left: 75%;">
+                            <div class="absolute -top-16 bg-emerald-600 text-white px-4 py-1.5 rounded-full text-sm font-black shadow-lg ring-4 ring-white">B</div>
+                            <div id="bubbleB" class="speech-bubble text-emerald-600 border-emerald-600">0 N</div>
+                            <div class="text-[130px] leading-none z-10 pointer-events-none" style="margin-bottom: -62px;">🚶</div>
+                            <div class="text-[96px] leading-none drop-shadow-md opacity-90 -translate-y-[45px]" style="transform: rotate(41deg);">🛹</div>
+                        </div>
+
+                        <svg id="tug-svg" class="absolute inset-0 w-full h-full pointer-events-none z-20 overflow-visible">
+                            <defs>
+                                <marker id="arrow-blue-n" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 Z" fill="#2563eb" /></marker>
+                                <marker id="arrow-green-n" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 Z" fill="#10b981" /></marker>
+                            </defs>
+                            
+                            <line id="rope-shadow" x1="25%" y1="63.5%" x2="75%" y2="63.5%" stroke="#271103" stroke-width="4" stroke-linecap="round" />
+                            <line id="rope-base" x1="25%" y1="63.5%" x2="75%" y2="63.5%" stroke="#78350f" stroke-width="3" stroke-linecap="round" />
+                            <line id="rope-twists" x1="25%" y1="63.5%" x2="75%" y2="63.5%" stroke="#92400e" stroke-width="3" stroke-linecap="round" stroke-dasharray="2,2" />
+                            <line id="rope-highlight" x1="25%" y1="63.1%" x2="75%" y2="63.1%" stroke="#b45309" stroke-width="1" stroke-linecap="round" opacity="0.3" />
+                            
+                            <g id="force-group-A" class="opacity-0 transition-opacity">
+                                <line id="arrow-a" x1="25%" y1="62.5%" x2="25%" y2="62.5%" stroke="#2563eb" stroke-width="4" marker-end="url(#arrow-blue-n)" />
+                            </g>
+                            <g id="force-group-B" class="opacity-0 transition-opacity">
+                                <line id="arrow-b" x1="75%" y1="62.5%" x2="75%" y2="62.5%" stroke="#10b981" stroke-width="4" marker-end="url(#arrow-green-n)" />
+                            </g>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- 4. ERŐ MÉRÉSE -->
+                <div id="tab-measure" class="tab-content space-y-6">
+                    <div class="grid lg:grid-cols-4 gap-6">
+                        <div class="lg:col-span-1 space-y-4">
+                            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm text-center">
+                                <h3 class="font-bold text-slate-700 text-sm mb-4 border-b pb-2 uppercase tracking-tight">Méréshatár</h3>
+                                <div class="grid grid-cols-1 gap-3">
+                                    <button onclick="setDynaRange(2)" id="dyna-range-2" class="dyna-btn border p-3 rounded-xl text-left bg-white font-bold transition-all">2 N</button>
+                                    <button onclick="setDynaRange(5)" id="dyna-range-5" class="dyna-btn border p-3 rounded-xl text-left bg-blue-600 text-white shadow-lg font-bold transition-all">5 N</button>
+                                    <button onclick="setDynaRange(10)" id="dyna-range-10" class="dyna-btn border p-3 rounded-xl text-left bg-white font-bold transition-all">10 N</button>
+                                </div>
+                            </div>
+                            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm text-center">
+                                <h3 class="font-bold text-slate-700 text-sm mb-4 border-b pb-2 uppercase tracking-tight">Súlyválasztás</h3>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button onclick="setObjectMass(0)" id="mass-btn-0" class="mass-btn-m border p-3 rounded-xl text-[10px] font-black uppercase bg-white col-span-2 hover:bg-slate-50 transition-all">Nincs súly</button>
+                                    <button onclick="setObjectMass(50)" id="mass-btn-50" class="mass-btn-m border p-3 rounded-xl text-[10px] font-black bg-white transition-all">50 g</button>
+                                    <button onclick="setObjectMass(100)" id="mass-btn-100" class="mass-btn-m bg-blue-600 text-white p-3 rounded-xl text-[10px] font-black transition-all">100 g</button>
+                                    <button onclick="setObjectMass(200)" id="mass-btn-200" class="mass-btn-m border p-3 rounded-xl text-[10px] font-black bg-white transition-all">200 g</button>
+                                    <button onclick="setObjectMass(500)" id="mass-btn-500" class="mass-btn-m border p-3 rounded-xl text-[10px] font-black bg-white transition-all">500 g</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="lg:col-span-2 bg-slate-100 rounded-3xl border-2 border-slate-200 min-h-[550px] relative overflow-hidden flex items-center justify-center">
+                            <svg width="300" height="550" id="dyna-svg" viewBox="0 0 300 550" class="drop-shadow-lg">
+                                <defs>
+                                    <linearGradient id="weight-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                        <stop offset="0%" style="stop-color:#1e3a8a" />
+                                        <stop offset="50%" style="stop-color:#3b82f6" />
+                                        <stop offset="100%" style="stop-color:#1e3a8a" />
+                                    </linearGradient>
+                                    <linearGradient id="weight-top" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" style="stop-color:#60a5fa" />
+                                        <stop offset="100%" style="stop-color:#2563eb" />
+                                    </linearGradient>
+                                </defs>
+                                <rect x="120" y="40" width="60" height="250" rx="6" fill="#ffffff" stroke="#334155" stroke-width="2.5" />
+                                <g id="dyna-scale"></g>
+                                <path id="dyna-spring" class="spring-coil" d="" />
+                                <g id="dyna-internal-assembly">
+                                    <rect id="dyna-indicator" x="120" y="58" width="60" height="5" fill="#ef4444" />
+                                    <line id="dyna-rod" x1="150" y1="60" x2="150" y2="300" stroke="#475569" stroke-width="5" stroke-linecap="round" />
+                                    <path d="M 150,300 C 150,315 135,315 135,305" fill="none" stroke="#475569" stroke-width="4" stroke-linecap="round" />
+                                </g>
+                                <g id="measured-object-assembly" opacity="1" transform="translate(0, 0)">
+                                    <circle cx="150" cy="305" r="8" fill="none" stroke="#94a3b8" stroke-width="3" />
+                                    <path d="M 125,320 L 175,320 L 175,380 A 25,8 0 0 1 125,380 Z" fill="url(#weight-grad)" />
+                                    <ellipse cx="150" cy="320" rx="25" ry="8" fill="url(#weight-top)" stroke="#1e3a8a" stroke-width="1" />
+                                    <text id="obj-label-m" x="150" y="355" fill="white" font-size="12" font-weight="900" text-anchor="middle">100g</text>
+                                </g>
+                            </svg>
+                        </div>
+
+                        <div class="lg:col-span-1 flex flex-col gap-4">
+                            <div class="bg-slate-900 p-8 rounded-3xl text-center shadow-xl border-4 border-slate-800">
+                                <div class="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] mb-2">Mért Erőnagyság</div>
+                                <div class="text-5xl font-black text-white font-mono tracking-tighter" id="measure-result">1.00 N</div>
+                                <div class="mt-4 text-[10px] text-slate-500 italic">Mértékegység: Newton (N)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <!-- LÁBLEC -->
+            <div class="bg-slate-900 p-6 text-white text-[10px] flex justify-between items-center opacity-90 font-mono">
+                <span>Digitális FABrikáló Műhely</span>
+                <span class="text-blue-500 font-black">.:henz:.</span>
+                <span>Henzel György</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // GLOBÁLIS ÁLLAPOTOK
+        const PX_PER_CM = 37.8; 
+        const ORIGIN_X = 400; 
+        const ORIGIN_Y = 200;
+        let puckPos = { x: 400, y: 200 }; 
+        let puckVel = { x: 0, y: 0 }; 
+        let friction = 1.0; 
+        let isBraking = false; 
+        let isDeflecting = false; 
+        let deflectPos = { x: 0, y: 0 };
+        let activeSubLab = 'motion'; 
+        let currentScenario = 'none'; 
+        let isDrawingHit = false; 
+        let hitStart = { x: 0, y: 0 };
+        let hasStartedMotion = false; 
+        let isDraggingPress = false; 
+        let pressY = 20; 
+        let currentDeformObj = 'ball';
+        let clayPermanentScale = 1.0; 
+        let shardsGenerated = false;
+
+        function updatePhysicsLoop() {
+            if (activeSubLab === 'motion' && document.getElementById('tab-effects').classList.contains('active')) {
+                if (isBraking && currentScenario === 'stop') { puckVel.x *= 0.92; puckVel.y *= 0.92; }
+                if (isDeflecting && currentScenario === 'turn') {
+                    const d = Math.sqrt(Math.pow(deflectPos.x-puckPos.x,2)+Math.pow(deflectPos.y-puckPos.y,2));
+                    if (d < 55) { 
+                        const nx = (puckPos.x-deflectPos.x)/d; 
+                        const ny = (puckPos.y-deflectPos.y)/d; 
+                        const dot = puckVel.x*nx+puckVel.y*ny;
+                        if (dot < 0) { 
+                            puckVel.x -= 2*dot*nx; 
+                            puckVel.y -= 2*dot*ny; 
+                            document.getElementById('puck-circle').classList.add('puck-glow-turn'); 
+                            setTimeout(()=>document.getElementById('puck-circle').classList.remove('puck-glow-turn'), 150); 
+                        }
+                    }
+                }
+                puckPos.x += puckVel.x; puckPos.y += puckVel.y; 
+                puckVel.x *= friction; puckVel.y *= friction;
+                if (puckPos.x < 30 || puckPos.x > 770) puckVel.x *= -1; 
+                if (puckPos.y < 30 || puckPos.y > 370) puckVel.y *= -1;
+                const pg = document.getElementById('puck-group'); 
+                if(pg) pg.setAttribute('transform', `translate(${puckPos.x}, ${puckPos.y})`);
+            }
+            requestAnimationFrame(updatePhysicsLoop);
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active-tab-btn', 'text-blue-500'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.add('text-slate-500'));
+            const content = document.getElementById(`tab-${tabId}`);
+            if(content) content.classList.add('active');
+            const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+            if(activeBtn) { activeBtn.classList.remove('text-slate-500'); activeBtn.classList.add('active-tab-btn'); }
+            lucide.createIcons();
+            if (tabId === 'measure') initMeasureTab();
+            if (tabId === 'effects') initEffectsTab();
+        }
+
+        function toggleVectorExplanation() { const box = document.getElementById('vector-explanation-box'); if(box) box.classList.toggle('hidden'); }
+        function updateVector(force, angle) {
+            const vArrow = document.getElementById('vector-arrow'); 
+            const inputForce = document.getElementById('input-force'); 
+            const inputAngle = document.getElementById('input-angle');
+            const displayForce = document.getElementById('display-force'); 
+            const displayAngle = document.getElementById('display-angle');
+            if(!inputForce || !vArrow) return;
+            inputForce.value = force; inputAngle.value = angle;
+            displayForce.innerText = `F = ${parseFloat(force).toFixed(1)} N`; 
+            displayAngle.innerText = `α = ${Math.round(angle)}°`;
+            const rad = (angle * Math.PI) / 180; const length = force * PX_PER_CM;
+            vArrow.setAttribute('x2', ORIGIN_X + length * Math.cos(rad)); 
+            vArrow.setAttribute('y2', ORIGIN_Y - length * Math.sin(rad));
+            const ticksGroup = document.getElementById('vector-ticks'); 
+            if(ticksGroup) {
+                ticksGroup.innerHTML = ''; const perpRad = rad + Math.PI / 2;
+                for (let i = 1; i <= Math.floor(force); i++) {
+                    const d = i * PX_PER_CM; const tx = ORIGIN_X + d * Math.cos(rad); const ty = ORIGIN_Y - d * Math.sin(rad);
+                    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                    line.setAttribute('x1', tx + 6 * Math.cos(perpRad)); line.setAttribute('y1', ty - 6 * Math.sin(perpRad));
+                    line.setAttribute('x2', tx - 6 * Math.cos(perpRad)); line.setAttribute('y2', ty + 6 * Math.sin(perpRad));
+                    line.setAttribute('stroke', '#1e3a8a'); line.setAttribute('stroke-width', '2'); ticksGroup.appendChild(line);
+                }
+            }
+        }
+
+        function initEffectsTab() { resetPuck(); initDeformLab(); }
+        
+        function switchSubLab(id) {
+            activeSubLab = id;
+            document.querySelectorAll('.sub-tab-content').forEach(c => c.classList.add('hidden'));
+            const content = document.getElementById(`sub-${id}`); 
+            if(content) content.classList.remove('hidden');
+            
+            document.querySelectorAll('[id^="sub-btn-"]').forEach(b => { 
+                b.classList.remove('bg-white', 'text-blue-600', 'shadow-sm', 'border-b-2', 'border-blue-600'); 
+                b.classList.add('text-slate-500'); 
+            });
+            
+            const activeBtn = document.getElementById(`sub-btn-${id}`); 
+            if(activeBtn) { 
+                activeBtn.classList.add('bg-white', 'text-blue-600', 'shadow-sm', 'border-b-2', 'border-blue-600'); 
+                activeBtn.classList.remove('text-slate-500'); 
+            }
+            
+            if(id === 'motion') resetPuck();
+            if(id === 'deformation') setDeformObject(currentDeformObj);
+        }
+
+        function toggleMotionExplanation() { const box = document.getElementById('motion-explanation-box'); if(box) box.classList.toggle('hidden'); }
+        function toggleDeformExplanation() { const box = document.getElementById('deform-explanation-box'); if(box) box.classList.toggle('hidden'); }
+        function toggleFriction() { 
+            friction = friction === 1.0 ? 0.992 : 1.0; 
+            const btn = document.getElementById('friction-toggle');
+            btn.innerText = `Súrlódás: ${friction === 1.0 ? 'KI' : 'BE'}`;
+            btn.className = friction === 1.0 ? 'px-3 py-2 bg-emerald-100 text-emerald-700 rounded-lg text-[10px] font-black uppercase tracking-widest border border-emerald-200' : 'px-3 py-2 bg-red-100 text-red-700 rounded-lg text-[10px] font-black uppercase tracking-widest border border-red-200';
+        }
+        function resetPuck() { 
+            puckPos = { x: 400, y: 200 }; puckVel = { x: 0, y: 0 }; 
+            currentScenario = 'none'; hasStartedMotion = false; 
+            isBraking = false; isDeflecting = false; 
+            const dp = document.getElementById('deflect-point'); if(dp) dp.setAttribute('opacity', '0'); 
+            updateScenarioUI(); 
+        }
+        function setMotionScenario(type) { 
+            currentScenario = type; isBraking = false; isDeflecting = false; 
+            if (type === 'start') { puckPos = { x: 400, y: 200 }; puckVel = { x: 0, y: 0 }; hasStartedMotion = true; } 
+            else if (type === 'stop') { puckPos = { x: 100, y: 200 }; puckVel = { x: 5, y: 0 }; } 
+            else if (type === 'turn') { puckPos = { x: 100, y: 100 }; puckVel = { x: 6, y: 3 }; } 
+            updateScenarioUI(); 
+        }
+        function updateScenarioUI() {
+            const instr = document.getElementById('motion-instruction');
+            ['start', 'stop', 'turn'].forEach(b => { 
+                const el = document.getElementById(`m-btn-${b}`); 
+                if(el) { if (currentScenario === b) el.classList.add('ring-2', 'ring-blue-400'); else el.classList.remove('ring-2', 'ring-blue-400'); } 
+            });
+            const sB = document.getElementById('m-btn-stop'); const tB = document.getElementById('m-btn-turn');
+            if (hasStartedMotion) { 
+                if(sB) {sB.disabled = false; sB.classList.remove('opacity-40');} 
+                if(tB) {tB.disabled = false; tB.classList.remove('opacity-40');} 
+            } else { 
+                if(sB) {sB.disabled = true; sB.classList.add('opacity-40');} 
+                if(tB) {tB.disabled = true; tB.classList.add('opacity-40');} 
+            }
+            const texts = { 'none': "Válassz funkciót! Kattints A TEST MOZGÁSBA HOZÁSA gombra a kezdéshez.", 'start': "Indítás: Húzz egy nyilat a testtől tetszőleges irányba!", 'stop': "Megállítás: Érintsd meg és tartsd nyomva a mozgó korongot!", 'turn': "Irányváltás: Érintsd meg a jégpályát a korong útjában!" };
+            if(instr) instr.innerHTML = texts[currentScenario] || texts.none;
+        }
+
+        function handleRinkStart(clientX, clientY) {
+            const rSvg = document.getElementById('rink-svg'); if(!rSvg) return;
+            const r = rSvg.getBoundingClientRect(); const cx = (clientX - r.left) * (800/r.width); const cy = (clientY - r.top) * (400/r.height);
+            const dist = Math.sqrt(Math.pow(cx - puckPos.x, 2) + Math.pow(cy - puckPos.y, 2));
+            if (currentScenario === 'stop' && dist < 40) { isBraking = true; const pc = document.getElementById('puck-circle'); if(pc) pc.classList.add('puck-glow-stop'); }
+            else if (currentScenario === 'turn') { isDeflecting = true; deflectPos = { x: cx, y: cy }; const dp = document.getElementById('deflect-point'); if(dp) { dp.setAttribute('transform', `translate(${cx}, ${cy})`); dp.setAttribute('opacity', '1'); } }
+            else if (currentScenario === 'start') { isDrawingHit = true; hitStart = { x: cx, y: cy }; const ha = document.getElementById('hit-arrow'); if(ha) { ha.setAttribute('x1', cx); ha.setAttribute('y1', cy); ha.setAttribute('opacity', '1'); } }
+        }
+        function handleRinkMove(clientX, clientY) {
+            const rSvg = document.getElementById('rink-svg'); if(!rSvg) return;
+            const r = rSvg.getBoundingClientRect(); const cx = (clientX - r.left) * (800/r.width); const cy = (clientY - r.top) * (400/r.height);
+            if (isDeflecting) { deflectPos = { x: cx, y: cy }; const dp = document.getElementById('deflect-point'); if(dp) dp.setAttribute('transform', `translate(${cx}, ${cy})`); }
+            if (isDrawingHit) { const ha = document.getElementById('hit-arrow'); if(ha) { ha.setAttribute('x2', cx); ha.setAttribute('y2', cy); } }
+        }
+        function handleRinkEnd(clientX, clientY) {
+            if (isBraking) { isBraking = false; const pc = document.getElementById('puck-circle'); if(pc) pc.classList.remove('puck-glow-stop'); }
+            if (isDeflecting) { isDeflecting = false; const dp = document.getElementById('deflect-point'); if(dp) dp.setAttribute('opacity', '0'); }
+            if (isDrawingHit) {
+                isDrawingHit = false; const ha = document.getElementById('hit-arrow'); if(ha) ha.setAttribute('opacity', '0');
+                const rSvg = document.getElementById('rink-svg'); if(!rSvg) return;
+                const r = rSvg.getBoundingClientRect(); const ex = (clientX - r.left) * (800/r.width); const ey = (clientY - r.top) * (400/r.height);
+                puckVel.x += (ex - hitStart.x) * 0.05; puckVel.y += (ey - hitStart.y) * 0.05;
+            }
+        }
+
+        function initDeformLab() {
+            const press = document.getElementById('press-plate'); 
+            const area = document.getElementById('deform-interactive-area'); 
+            if(!press) return;
+            const startD = () => { isDraggingPress = true; press.style.transition = 'none'; };
+            const moveD = (clientX, clientY) => {
+                if (!isDraggingPress) return;
+                const r = area.getBoundingClientRect(); let relY = clientY - r.top;
+                if (relY < 10) relY = 10; if (relY > 300) relY = 300; 
+                pressY = relY; press.style.top = pressY + 'px'; updateDeformPhysics();
+            };
+            const endD = () => {
+                isDraggingPress = false;
+                if (currentDeformObj === 'ball') {
+                    press.style.transition = 'top 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                    pressY = 20; press.style.top = '20px';
+                    let timer = setInterval(updateDeformPhysics, 16);
+                    setTimeout(() => clearInterval(timer), 450);
+                }
+            };
+            press.addEventListener('mousedown', startD); window.addEventListener('mousemove', (e) => moveD(e.clientX, e.clientY)); window.addEventListener('mouseup', endD);
+            press.addEventListener('touchstart', (e) => { if(e.touches.length > 0) startD(); e.preventDefault(); }, {passive: false});
+            window.addEventListener('touchmove', (e) => { if(isDraggingPress && e.touches.length > 0) moveD(e.touches[0].clientX, e.touches[0].clientY); }, {passive: false});
+            window.addEventListener('touchend', endD);
+        }
+
+        function updateDeformPhysics() {
+            const press = document.getElementById('press-plate'); if(!press) return;
+            const target = document.getElementById(`obj-${currentDeformObj}`); if (!target) return;
+            const pRect = press.getBoundingClientRect(); 
+            const floor = document.querySelector('.deform-floor'); const floorRect = floor.getBoundingClientRect();
+            
+            let force = 0; let deformationScale = 1.0;
+            const originalHeight = currentDeformObj === 'ball' ? 160 : (currentDeformObj === 'clay' ? 120 : 190);
+            const currentSpace = floorRect.top - pRect.bottom;
+
+            if (currentSpace < originalHeight) {
+                let calculatedScale = Math.max(0.1, currentSpace / originalHeight);
+                if (currentDeformObj === 'clay') {
+                    if (isDraggingPress && calculatedScale < clayPermanentScale) { clayPermanentScale = calculatedScale; }
+                    deformationScale = clayPermanentScale;
+                    if (isDraggingPress) {
+                        const currentClayHeight = originalHeight * clayPermanentScale;
+                        if (currentSpace <= currentClayHeight) { force = Math.min(100, (currentClayHeight - currentSpace) * 4.0 + (1.0 - clayPermanentScale) * 10); }
+                    }
+                } else if (currentDeformObj === 'glass') {
+                    deformationScale = 1.0; 
+                    const delta = originalHeight - currentSpace;
+                    force = Math.min(100, delta * 4.5); 
+                } else {
+                    deformationScale = calculatedScale;
+                    const delta = originalHeight - currentSpace;
+                    force = Math.min(100, delta * 0.8);
+                }
+            } else {
+                deformationScale = (currentDeformObj === 'clay') ? clayPermanentScale : 1.0;
+                force = 0;
+            }
+
+            if (currentDeformObj === 'glass') {
+                const gb = document.getElementById('glass-body'); 
+                const gs = document.getElementById('glass-shards');
+
+                if (force > 85) shardsGenerated = true;
+
+                if (shardsGenerated) {
+                    force = 0; 
+                    if(gb) gb.classList.add('hidden'); 
+                    if(gs) {
+                        gs.classList.remove('hidden');
+                        if (gs.children.length === 0) generateShards();
+                    }
+                } else { 
+                    if(gb) gb.classList.remove('hidden'); 
+                    if(gs) gs.classList.add('hidden'); 
+                }
+
+                if (currentSpace >= originalHeight) {
+                    shardsGenerated = false;
+                    if(gs) gs.innerHTML = '';
+                }
+            }
+
+            const fL = document.getElementById('deform-force-val'); if(fL) fL.innerText = `F = ${force.toFixed(1)} N`;
+            
+            if (currentDeformObj !== 'glass') {
+                target.style.transform = `scaleY(${deformationScale})`;
+            }
+        }
+
+        function generateShards() {
+            const container = document.getElementById('glass-shards');
+            if(!container) return;
+            container.innerHTML = '';
+
+            for (let i = 0; i < 40; i++) {
+                const shard = document.createElement('span');
+                shard.textContent = '💎';
+                shard.className = 'absolute shard-pop select-none';
+                
+                const sizes = ['text-xs', 'text-sm', 'text-base', 'text-xl', 'text-2xl', 'text-3xl'];
+                const sizeClass = sizes[Math.floor(Math.random() * sizes.length)];
+                shard.classList.add(sizeClass);
+                
+                const x = (Math.random() - 0.5) * 200; 
+                const y = Math.random() * 20; 
+                
+                shard.style.setProperty('--tw-translate-x', `${x}px`);
+                shard.style.setProperty('--tw-translate-y', `${y}px`);
+                shard.style.bottom = '0px';
+                shard.style.left = 'calc(50% - 10px)';
+                
+                container.appendChild(shard);
+            }
+        }
+
+        function setDeformObject(type) {
+            currentDeformObj = type; clayPermanentScale = 1.0; shardsGenerated = false;
+            document.querySelectorAll('[id^="obj-"]').forEach(o => { o.classList.add('hidden'); o.style.transform = 'scaleY(1)'; });
+            const content = document.getElementById(`obj-${type}`); if(content) content.classList.remove('hidden');
+            
+            document.querySelectorAll('[id^="def-btn-"]').forEach(b => { 
+                b.classList.add('opacity-60'); 
+                b.classList.remove('border-blue-500'); 
+            });
+            const btn = document.getElementById(`def-btn-${type}`); if(btn) { btn.classList.remove('opacity-60'); btn.classList.add('border-blue-500'); }
+            
+            const d = document.getElementById('deform-desc-text');
+            const instr = document.getElementById('deform-instruction-text');
+            
+            if(type === 'ball') {
+                if(d) d.innerText = "⚽ Rugalmas alakváltozás: Az erő hatására a test összenyomódik. A prés alja és a padló közötti távolság határozza meg a labda magasságát.";
+                if(instr) instr.innerText = "Húzd lefelé a sötét prést a gumilabda összenyomásához! Figyeld meg a rugalmas alakváltozást.";
+            } else if (type === 'clay') {
+                if(d) d.innerText = "Maradandó alakváltozás: A gyurma képlékeny test. Összenyomás után megtartja az alakját.";
+                if(instr) instr.innerText = "Húzd lefelé a sötét prést a gyurma összenyomásához! Figyeld meg a maradandó alakváltozást.";
+            } else if (type === 'glass') {
+                if(d) d.innerText = "💎 Merev test: A gyémánt alakja nem változik láthatóan a töréshatárig (F > 85N). Ekkor hirtelen darabokra törik és a nyomóerő megszűnik.";
+                if(instr) instr.innerText = "Húzd lefelé a sötét prést! A töréshatár elérésekor a test hirtelen sok darabra törik, az ellenállás (és így az erő) pedig megszűnik.";
+            }
+            
+            pressY = 20; const pp = document.getElementById('press-plate'); if(pp) pp.style.top = '20px';
+            const gs = document.getElementById('glass-shards'); if(gs) gs.innerHTML = '';
+            setTimeout(updateDeformPhysics, 50);
+        }
+
+        function toggleNewtonExplanationMain() { const box = document.getElementById('newton-explanation-box-main'); if(box) box.classList.toggle('hidden'); }
+        let posAN = 25, posBN = 75, pullIntensityN = 0, isDraggingN = null, dragStartCoordN = 0;
+        
+        function updateNewtonSimulation() {
+            const fA = document.getElementById('figureA'); const fB = document.getElementById('figureB'); 
+            if(!fA || !fB) return;
+            fA.style.left = `${posAN}%`; fB.style.left = `${posBN}%`;
+            
+            const ropeIds = ['rope-shadow', 'rope-base', 'rope-twists', 'rope-highlight'];
+            ropeIds.forEach(id => {
+                const el = document.getElementById(id);
+                if(el) { el.setAttribute('x1', `${posAN}%`); el.setAttribute('x2', `${posBN}%`); }
+            });
+            
+            const gA = document.getElementById('force-group-A'); const gB = document.getElementById('force-group-B');
+            const bA = document.getElementById('bubbleA'); const bB = document.getElementById('bubbleB');
+            const arrowA = document.getElementById('arrow-a'); const arrowB = document.getElementById('arrow-b');
+            
+            if (isDraggingN && pullIntensityN >= 5) {
+                if(gA) gA.classList.remove('opacity-0'); if(gB) gB.classList.remove('opacity-0');
+                if(bA) { bA.style.opacity = 1; bA.textContent = Math.round(pullIntensityN) + " N"; }
+                if(bB) { bB.style.opacity = 1; bB.textContent = Math.round(pullIntensityN) + " N"; }
+                const arrowLength = pullIntensityN * 1.5; 
+                if(arrowA) { arrowA.setAttribute('x1', `${posAN}%`); arrowA.setAttribute('y1', `62.5%`); arrowA.setAttribute('x2', `calc(${posAN}% + ${arrowLength}px)`); arrowA.setAttribute('y2', `62.5%`); }
+                if(arrowB) { arrowB.setAttribute('x1', `${posBN}%`); arrowB.setAttribute('y1', `62.5%`); arrowB.setAttribute('x2', `calc(${posBN}% - ${arrowLength}px)`); arrowB.setAttribute('y2', `62.5%`); }
+            } else { 
+                if(gA) gA.classList.add('opacity-0'); if(gB) gB.classList.add('opacity-0'); 
+                if(bA) bA.style.opacity = 0; if(bB) bB.style.opacity = 0; 
+            }
+        }
+        function handleNMove(clientX) { 
+            if (!isDraggingN) return; 
+            const pullForce = Math.abs(clientX - dragStartCoordN) / 4;
+            pullIntensityN = Math.min(80, pullForce); 
+            if (posBN - posAN > 18) { posAN += pullIntensityN/250; posBN -= pullIntensityN/250; } 
+            updateNewtonSimulation(); 
+        }
+        function resetNewton3() { posAN = 25; posBN = 75; pullIntensityN = 0; isDraggingN = null; updateNewtonSimulation(); }
+
+        let dynaRange = 5; let objectMass = 100;
+        function initMeasureTab() { renderScale(); updateDynaState(); }
+        function setDynaRange(r) { 
+            dynaRange = r; 
+            document.querySelectorAll('.dyna-btn').forEach(b => { 
+                if(b.id === `dyna-range-${r}`) b.className="dyna-btn border p-3 rounded-xl text-left bg-blue-600 text-white shadow-lg font-bold transition-all"; 
+                else b.className="dyna-btn border p-3 rounded-xl text-left bg-white font-bold transition-all"; 
+            }); 
+            initMeasureTab(); 
+        }
+        function renderScale() {
+            const scaleG = document.getElementById('dyna-scale'); if(!scaleG) return; scaleG.innerHTML = '';
+            for (let i = 0; i <= 20; i++) {
+                const y = 60 + (i / 20) * 200; const isMajor = i % 5 === 0;
+                const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                line.setAttribute('x1', 120); line.setAttribute('x2', isMajor ? 145 : 135); 
+                line.setAttribute('y1', y); line.setAttribute('y2', y);
+                line.setAttribute('stroke', '#334155'); line.setAttribute('stroke-width', isMajor ? '2' : '1');
+                scaleG.appendChild(line);
+                if (isMajor) { 
+                    const text = document.createElementNS("http://www.w3.org/2000/svg", "text"); 
+                    text.setAttribute('x', 155); text.setAttribute('y', y + 4); 
+                    text.setAttribute('font-size', '10'); text.setAttribute('font-weight', '700'); 
+                    text.textContent = (i * dynaRange / 20).toFixed(1); 
+                    scaleG.appendChild(text); 
+                }
+            }
+        }
+        function setObjectMass(m) { 
+            objectMass = m; 
+            document.querySelectorAll('.mass-btn-m').forEach(b => { 
+                if(b.id === `mass-btn-${m}`) b.className="mass-btn-m bg-blue-600 text-white p-3 rounded-xl text-[10px] font-black transition-all"; 
+                else b.className="mass-btn-m border p-3 rounded-xl text-[10px] font-black bg-white transition-all"; 
+            });
+            const res = document.getElementById('measure-result'); if(res) res.innerText = (m/100).toFixed(2) + " N"; 
+            updateDynaState(); 
+        }
+        function updateDynaState() {
+            const force = objectMass / 100; const extension = (force / dynaRange) * 200;
+            const spring = document.getElementById('dyna-spring'); const weightAssembly = document.getElementById('measured-object-assembly');
+            if(spring) {
+                let d = `M 150,40`;
+                for (let i = 0; i <= 15; i++) { d += ` L ${150 + (i%2?8:-8)},${40 + (i/15)*(20+extension)}`; }
+                spring.setAttribute('d', d); 
+            }
+            const internal = document.getElementById('dyna-internal-assembly'); if(internal) internal.setAttribute('transform', `translate(0, ${extension})`); 
+            if(weightAssembly) {
+                weightAssembly.setAttribute('transform', `translate(0, ${extension})`);
+                weightAssembly.setAttribute('opacity', objectMass === 0 ? '0' : '1');
+            }
+            const label = document.getElementById('obj-label-m'); if(label) label.textContent = objectMass + "g";
+        }
+
+        function startSynthesis() { 
+            const foot = document.getElementById('kick-foot'); 
+            const ballContainer = document.getElementById('kick-ball-container');
+            const subTab = document.getElementById('sub-synthesis'); 
+            const explanation = document.getElementById('kick-explanation');
+            const button = document.getElementById('btn-start-kick');
+
+            if (!foot || !ballContainer || !subTab) return;
+
+            button.disabled = true;
+            explanation.classList.add('hidden');
+            subTab.classList.remove('animating-kick');
+            
+            ballContainer.style.transition = 'none';
+            ballContainer.style.transform = 'translateX(0) translateY(0) rotate(0deg)';
+            foot.style.transition = 'none';
+            foot.style.transform = 'translateX(-220px)'; 
+
+            setTimeout(() => {
+                foot.style.transition = 'transform 0.8s ease-in-out';
+                foot.style.transform = 'translateX(-65px)'; 
+
+                setTimeout(() => {
+                    subTab.classList.add('animating-kick');
+                    
+                    setTimeout(() => {
+                        ballContainer.style.transition = 'transform 3.5s cubic-bezier(0.1, 0.3, 0.4, 1)';
+                        ballContainer.style.transform = 'translateX(600px) translateY(-180px) rotate(360deg)';
+                        explanation.classList.remove('hidden');
+                        
+                        setTimeout(() => {
+                            foot.style.transition = 'transform 1s ease-out';
+                            foot.style.transform = 'translateX(-220px)';
+                            button.disabled = false;
+                        }, 2500);
+                    }, 600); 
+                }, 800); 
+            }, 50);
+        }
+
+        window.onload = () => { 
+            lucide.createIcons(); 
+            if(document.getElementById('input-force')) updateVector(5, 0); 
+            initMeasureTab();
+            const vo = document.getElementById('touch-overlay-v');
+            if(vo) {
+                let isMovingV = false;
+                const processV = (clientX, clientY) => {
+                    const r = document.getElementById('vector-svg').getBoundingClientRect();
+                    const x = (clientX - r.left) * (800 / r.width); const y = (clientY - r.top) * (400 / r.height);
+                    updateVector(Math.min(10, Math.max(0, Math.sqrt(Math.pow(x-ORIGIN_X, 2) + Math.pow(ORIGIN_Y-y, 2)) / PX_PER_CM)), (Math.atan2(ORIGIN_Y-y, x-ORIGIN_X) * (180 / Math.PI) + 360) % 360);
+                };
+                vo.addEventListener('mousedown', () => isMovingV = true);
+                window.addEventListener('mousemove', (e) => { if(isMovingV) processV(e.clientX, e.clientY); });
+                window.addEventListener('mouseup', () => isMovingV = false);
+                vo.addEventListener('touchstart', (e) => { isMovingV = true; if(e.touches.length > 0) processV(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }, {passive: false});
+                window.addEventListener('touchmove', (e) => { if(isMovingV && e.touches.length > 0) processV(e.touches[0].clientX, e.touches[0].clientY); }, {passive: false});
+                window.addEventListener('touchend', () => isMovingV = false);
+            }
+            const rink = document.getElementById('rink-overlay');
+            if(rink) {
+                rink.addEventListener('mousedown', (e) => handleRinkStart(e.clientX, e.clientY));
+                window.addEventListener('mousemove', (e) => handleRinkMove(e.clientX, e.clientY));
+                window.addEventListener('mouseup', (e) => handleRinkEnd(e.clientX, e.clientY));
+                rink.addEventListener('touchstart', (e) => { if(e.touches.length > 0) handleRinkStart(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }, {passive: false});
+                window.addEventListener('touchmove', (e) => { if(e.touches.length > 0) handleRinkMove(e.touches[0].clientX, e.touches[0].clientY); }, {passive: false});
+                window.addEventListener('touchend', (e) => { if(e.changedTouches.length > 0) handleRinkEnd(e.changedTouches[0].clientX, e.changedTouches[0].clientY); });
+            }
+            const setupDragN = (id, target) => { const el = document.getElementById(id); if(!el) return; el.addEventListener('mousedown', (e) => { isDraggingN = target; dragStartCoordN = e.clientX; }); el.addEventListener('touchstart', (e) => { if(e.touches.length > 0) { isDraggingN = target; dragStartCoordN = e.touches[0].clientX; } }, { passive: false }); };
+            setupDragN('figureA', 'A'); setupDragN('figureB', 'B');
+            window.addEventListener('mousemove', (e) => handleNMove(e.clientX));
+            window.addEventListener('touchmove', (e) => { if(e.touches.length > 0) handleNMove(e.touches[0].clientX); });
+            window.addEventListener('mouseup', () => { isDraggingN = null; pullIntensityN = 0; updateNewtonSimulation(); });
+            window.addEventListener('touchend', () => { isDraggingN = null; pullIntensityN = 0; updateNewtonSimulation(); });
+            requestAnimationFrame(updatePhysicsLoop); 
+        };
+    </script>
+</body>
+<button onclick="location.href='index.html'" style="
+    position: fixed; 
+    top: 40px; 
+    right: 160px; 
+    padding: 10px 10px; 
+    background: #FFF3eb; 
+    color: green; 
+    border: none; 
+    border-radius: 8px; 
+    cursor: pointer; 
+    z-index: 1000;
+    box-shadow: 0 2px 5px rgba(2,2,2,0.2);
+">🏠</button>
+</html>

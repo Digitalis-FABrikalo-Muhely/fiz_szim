@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Házi Spirométer - DigiFAB</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            margin: 0;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        /* --- FEJLÉC ÉS LÁBLEC STÍLUSOK --- */
+        .header {
+            background-color: #2563eb;
+            color: white;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 50;
+        }
+
+        .header h1 { margin: 0; font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+        .header h1 span { font-weight: 900; opacity: 0.8; font-size: 0.8rem; }
+        
+        .badge { background-color: #1d4ed8; padding: 6px 16px; border-radius: 9999px; font-size: 0.8rem; font-weight: 700; }
+
+        .footer {
+            background-color: #0f172a;
+            padding: 20px;
+            color: white;
+            font-size: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            opacity: 0.95;
+            font-family: monospace;
+            z-index: 50;
+        }
+
+        /* --- LAYOUT --- */
+        .layout-wrapper {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 60px - 50px); 
+            flex: 1;
+        }
+
+        @media (min-width: 1024px) {
+            .layout-wrapper { flex-direction: row; }
+            .sidebar { width: 400px; min-width: 350px; border-left: 1px solid #e2e8f0; }
+        }
+
+        .canvas-area {
+            flex: 1;
+            position: relative;
+            background-color: #f1f5f9;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        canvas {
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
+            touch-action: none;
+        }
+
+        .sidebar {
+            background-color: white;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            box-shadow: -4px 0 15px rgba(0,0,0,0.02);
+            overflow-y: auto;
+        }
+
+        /* --- UI ELEMEK --- */
+        .measurement-card {
+            background-color: #f8fafc;
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #e2e8f0;
+            border-left: 4px solid #2563eb;
+        }
+
+        .control-label {
+            display: block;
+            font-size: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #64748b;
+            margin-bottom: 12px;
+        }
+
+        .math-text { font-family: "Times New Roman", Times, serif; font-style: italic; text-transform: none !important; }
+
+        .btn-blow {
+            width: 100%;
+            padding: 20px;
+            background-color: #ef4444;
+            color: white;
+            border-radius: 16px;
+            font-weight: 900;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+            user-select: none;
+        }
+        .btn-blow:active { transform: scale(0.96); background-color: #dc2626; }
+
+        .btn-reset {
+            width: 100%;
+            padding: 12px;
+            background-color: #f1f5f9;
+            color: #475569;
+            border-radius: 12px;
+            font-weight: 800;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: background-color 0.2s;
+        }
+        .btn-reset:hover { background-color: #e2e8f0; }
+
+        .btn-info {
+            width: 100%;
+            padding: 14px;
+            background-color: #2563eb;
+            color: white;
+            border-radius: 14px;
+            font-weight: 800;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px rgba(37, 99, 235, 0.1);
+        }
+        .btn-info:hover { background-color: #1d4ed8; transform: translateY(-1px); }
+
+        /* --- MODAL (POPUP) --- */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(15, 23, 42, 0.8);
+            backdrop-blur: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+
+        .modal-card {
+            background-color: white;
+            width: 90%;
+            max-width: 600px;
+            max-height: 85vh;
+            border-radius: 24px;
+            padding: 32px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+            overflow-y: auto;
+        }
+        .modal-overlay.active .modal-card { transform: scale(1); }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 900;
+            color: #1e293b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 24px;
+            border-bottom: 2px solid #f1f5f9;
+            padding-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .step-item {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .step-num {
+            background-color: #2563eb;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 14px;
+        }
+        .step-text { font-size: 1rem; line-height: 1.6; color: #475569; }
+        .step-text b { color: #1e293b; }
+
+        .progress-container {
+            width: 100%;
+            height: 12px;
+            background-color: #e2e8f0;
+            border-radius: 99px;
+            overflow: hidden;
+            margin-top: 14px;
+        }
+        .progress-bar {
+            height: 100%;
+            background-color: #2563eb;
+            transition: width 0.1s linear, background-color 0.3s;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen">
+
+    <!-- FEJLÉC -->
+    <div class="header">
+        <div class="header-left">
+            <h1><span>FIZIKA</span> 🫁 Házi Spirométer</h1>
+        </div>
+        <div class="header-center font-black text-xl tracking-tighter opacity-80 hidden md:block">DigiFAB</div>
+        <div class="header-right">
+            <span class="badge">6. osztály</span>
+        </div>
+    </div>
+
+    <div class="layout-wrapper">
+        <!-- Canvas terület -->
+        <div class="canvas-area">
+            <canvas id="simCanvas" width="600" height="450"></canvas>
+            
+            <div class="absolute bottom-6 left-6 pointer-events-none">
+                <div class="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full border border-slate-200 text-[10px] font-bold text-slate-500 flex items-center gap-2 shadow-sm">
+                    <i data-lucide="mouse-pointer-2" class="w-3 h-3 text-blue-600"></i> TARTTSD LENYOMVA A PIROS GOMBOT
+                </div>
+            </div>
+        </div>
+
+        <!-- Vezérlőpanel -->
+        <div class="sidebar">
+            
+            <div class="control-group">
+                <span class="control-label">Mérési adatok</span>
+                <div class="measurement-card">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] font-black text-slate-500 uppercase mb-1">Kilélegzett levegő térfogata (<span class="math-text">V</span>)</span>
+                        <span id="volumeDisplay" class="text-5xl font-black text-blue-600 font-mono tracking-tighter">0 ml</span>
+                    </div>
+                    <div class="progress-container">
+                        <div id="volumeBar" class="progress-bar" style="width: 0%"></div>
+                    </div>
+                    <div class="flex justify-between text-[11px] font-black text-slate-400 mt-3 uppercase tracking-widest">
+                        <span>0 ml</span>
+                        <span>3000 ml (Max)</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <button id="blowBtn" class="btn-blow">
+                    <div class="flex items-center gap-3">
+                        <i data-lucide="wind" class="w-8 h-8"></i>
+                        <span>FÚJÁS</span>
+                    </div>
+                    <span class="text-[10px] opacity-70 font-bold uppercase tracking-wider">Tartsd lenyomva a méréshez</span>
+                </button>
+
+                <button id="resetBtn" class="btn-reset">
+                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Új mérés indítása
+                </button>
+
+                <hr class="border-slate-100 my-2">
+
+                <button id="openModal" class="btn-info">
+                    <i data-lucide="book-open" class="w-5 h-5"></i>
+                    <span>Jelenség magyarázata</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- MODÁLIS ABLAK (POPUP) -->
+    <div id="modalOverlay" class="modal-overlay">
+        <div class="modal-card">
+            <h2 class="modal-title">
+                <i data-lucide="info" class="text-blue-600"></i>
+                Hogyan működik a mérés?
+            </h2>
+            
+            <div class="space-y-2">
+                <div class="step-item">
+                    <div class="step-num">1</div>
+                    <div class="step-text"><b>Levegő befújása:</b> Amikor a rövid csövön levegőt fújsz az üvegbe, sok apró, mozgó levegőrészecskét juttatsz a víz feletti zárt térbe.</div>
+                </div>
+                
+                <div class="step-item">
+                    <div class="step-num">2</div>
+                    <div class="step-text"><b>Nyomásnövekedés:</b> A több levegőrészecske miatt megnő az ütközések száma a víz felszínével, ezért az üvegben a <b>nyomás megemelkedik</b>.</div>
+                </div>
+                
+                <div class="step-item">
+                    <div class="step-num">3</div>
+                    <div class="step-text"><b>Pascal törvénye:</b> A folyadékok a rájuk nehezedő nyomást <b>minden irányban továbbítják</b>. Ez a nyomás "lefelé" is hat, bele a vízbe.</div>
+                </div>
+                
+                <div class="step-item">
+                    <div class="step-num">4</div>
+                    <div class="step-text"><b>A víz útja:</b> Mivel a rendszer zárt, a víz csak a hosszú csövön keresztül tud távozni. A belső túlnyomás addig tolja ki a vizet a mérőhengerbe, amíg levegőt fújsz be.</div>
+                </div>
+            </div>
+
+            <div class="mt-8 p-5 bg-blue-50 rounded-2xl border border-blue-100 shadow-inner">
+                <p class="text-blue-900 font-bold mb-2 flex items-center gap-2">
+                    <i data-lucide="lightbulb" class="w-4 h-4 text-amber-500"></i>
+                    Gondolj bele:
+                </p>
+                <p class="text-sm text-blue-800 leading-relaxed italic">
+                    Ez pontosan olyan, mintha egy félig telt üdítős dobozt megszorítanál. A szorítás (a kifejtett nyomás) hatására az üdítő azonnal felszalad a szívószálon és kijön a dobozból!
+                </p>
+            </div>
+
+            <button id="closeModal" class="mt-8 w-full py-4 bg-slate-900 text-white font-black rounded-xl uppercase tracking-widest text-xs hover:bg-slate-800 transition-colors">
+                Értem, bezárom
+            </button>
+        </div>
+    </div>
+    
+    <!-- LÁBLEC -->
+    <div class="footer">
+        <span>Digitális FABrikáló Műhely</span>
+        <span class="text-blue-500 font-black">.:henz:.</span>
+        <span>Henzel György</span>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const blowBtn = document.getElementById('blowBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const volumeDisplay = document.getElementById('volumeDisplay');
+        const volumeBar = document.getElementById('volumeBar');
+        
+        // Modal kezelés
+        const modalOverlay = document.getElementById('modalOverlay');
+        const openBtn = document.getElementById('openModal');
+        const closeBtn = document.getElementById('closeModal');
+
+        openBtn.addEventListener('click', () => modalOverlay.classList.add('active'));
+        closeBtn.addEventListener('click', () => modalOverlay.classList.remove('active'));
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) modalOverlay.classList.remove('active');
+        });
+
+        // Állapot változók
+        let isBlowing = false;
+        let transferredVolume = 0; 
+        const maxCapacity = 3000; 
+        const startWaterVolume = 4000; 
+        
+        let waterParticles = []; 
+        let bubbles = []; 
+        
+        // Konfiguráció
+        const jar = { x: 50, y: 120, w: 160, h: 250 }; 
+        const cyl = { x: 380, y: 150, w: 70, h: 250 }; 
+        const cylBaseWidth = 110;
+        const cylBaseHeight = 15;
+        const shortStrawX = jar.x + 40;
+        const longStrawX = jar.x + 120;
+        
+        function roundedRectPath(ctx, x, y, w, h, r) {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + w - r, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+            ctx.lineTo(x + w, y + h - r);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            ctx.lineTo(x + r, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.closePath();
+        }
+
+        function drawPipe3D(ctx, points, color, width) {
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            for(let i=1; i<points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+            ctx.strokeStyle = '#991b1b'; 
+            ctx.lineWidth = width;
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            for(let i=1; i<points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+            ctx.strokeStyle = color; 
+            ctx.lineWidth = width - 2; 
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            for(let i=1; i<points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.lineWidth = width * 0.3;
+            ctx.stroke();
+        }
+
+        class WaterParticle {
+            constructor() {
+                this.x = cyl.x + cyl.w / 2; 
+                this.y = cyl.y - 30;
+                this.vx = (Math.random() - 0.5) * 1.5;
+                this.vy = Math.random() * 5 + 3;
+                this.size = Math.random() * 2 + 2;
+                this.color = `rgba(59, 130, 246, ${Math.random() * 0.4 + 0.6})`;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.5; 
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+            }
+        }
+
+        class Bubble {
+            constructor(x, y) {
+                this.x = x + (Math.random() - 0.5) * 20;
+                this.y = y;
+                this.size = Math.random() * 3 + 1;
+                this.speed = Math.random() * 1 + 0.5;
+                this.life = 1.0;
+            }
+            update() {
+                this.y -= this.speed;
+                this.life -= 0.02;
+            }
+            draw() {
+                ctx.fillStyle = `rgba(255, 255, 255, ${this.life})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function drawGraduatedCylinder() {
+            ctx.fillStyle = '#94a3b8'; 
+            ctx.beginPath();
+            ctx.moveTo(cyl.x + cyl.w/2 - cylBaseWidth/2, cyl.y + cyl.h + cylBaseHeight);
+            ctx.lineTo(cyl.x + cyl.w/2 + cylBaseWidth/2, cyl.y + cyl.h + cylBaseHeight);
+            ctx.lineTo(cyl.x + cyl.w/2 + cylBaseWidth/2 - 10, cyl.y + cyl.h);
+            ctx.lineTo(cyl.x + cyl.w/2 - cylBaseWidth/2 + 10, cyl.y + cyl.h);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 2; 
+            ctx.stroke();
+
+            const cylFillPct = Math.min(1, transferredVolume / maxCapacity);
+            const cylWaterH = cyl.h * cylFillPct;
+            const cylWaterY = cyl.y + cyl.h - cylWaterH;
+
+            if (cylWaterH > 0) {
+                ctx.fillStyle = '#3b82f6'; 
+                ctx.fillRect(cyl.x, cylWaterY, cyl.w, cylWaterH);
+            }
+
+            ctx.strokeStyle = '#94a3b8'; 
+            ctx.lineWidth = 5; 
+            ctx.beginPath();
+            ctx.moveTo(cyl.x, cyl.y);
+            ctx.lineTo(cyl.x, cyl.y + cyl.h);
+            ctx.lineTo(cyl.x + cyl.w, cyl.y + cyl.h);
+            ctx.lineTo(cyl.x + cyl.w, cyl.y);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(cyl.x, cyl.y);
+            ctx.quadraticCurveTo(cyl.x - 5, cyl.y - 5, cyl.x - 8, cyl.y - 2); 
+            ctx.stroke();
+
+            ctx.fillStyle = '#475569';
+            ctx.font = '10px monospace';
+            ctx.textAlign = 'right';
+            ctx.lineWidth = 1; 
+
+            const majorTicks = 6; 
+            for (let i = 0; i <= majorTicks; i++) {
+                const stepY = cyl.y + cyl.h - (i * (cyl.h / majorTicks));
+                ctx.beginPath();
+                ctx.moveTo(cyl.x + 15, stepY); 
+                ctx.lineTo(cyl.x, stepY);
+                ctx.stroke();
+                if (i > 0) {
+                    const labelVal = Math.round(i * (maxCapacity/majorTicks));
+                    ctx.fillText(labelVal, cyl.x - 5, stepY + 3);
+                }
+            }
+            ctx.textAlign = 'left'; 
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const jarWaterVol = startWaterVolume - transferredVolume;
+            const jarFillPct = Math.max(0, jarWaterVol / 5000); 
+            const jarWaterH = jar.h * jarFillPct;
+            const jarWaterY = jar.y + jar.h - jarWaterH;
+            const jarRadius = 20; 
+
+            ctx.save();
+            roundedRectPath(ctx, jar.x, jar.y, jar.w, jar.h, jarRadius);
+            ctx.clip(); 
+            ctx.fillStyle = 'rgba(235, 245, 255, 0.4)'; 
+            ctx.fill();
+            ctx.fillStyle = '#60a5fa'; 
+            ctx.fillRect(jar.x, jarWaterY, jar.w, jarWaterH);
+            const gradient = ctx.createLinearGradient(jar.x, jar.y, jar.x + jar.w, jar.y);
+            gradient.addColorStop(0, 'rgba(255,255,255,0)');
+            gradient.addColorStop(0.25, 'rgba(255,255,255,0.4)'); 
+            gradient.addColorStop(0.85, 'rgba(255,255,255,0)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(jar.x, jar.y, jar.w, jar.h);
+            ctx.restore();
+
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 3;
+            roundedRectPath(ctx, jar.x, jar.y, jar.w, jar.h, jarRadius);
+            ctx.stroke();
+
+            const strawWidth = 14; 
+            const strawColor = '#ef4444';
+            const shortStrawPoints = [
+                {x: shortStrawX - 30, y: jar.y - 40},
+                {x: shortStrawX, y: jar.y - 25}, 
+                {x: shortStrawX, y: jar.y + 40}
+            ];
+            drawPipe3D(ctx, shortStrawPoints, strawColor, strawWidth);
+            
+            if (isBlowing) {
+                ctx.fillStyle = '#ef4444';
+                ctx.font = 'bold 12px Inter';
+                ctx.fillText("Levegő 💨", shortStrawX - 55, jar.y - 45);
+            }
+
+            const longStrawPoints = [
+                {x: longStrawX, y: jar.y + jar.h - jarRadius/2},
+                {x: longStrawX, y: jar.y - 30},
+                {x: cyl.x + cyl.w/2, y: jar.y - 30},
+                {x: cyl.x + cyl.w/2, y: cyl.y - 20}
+            ];
+            drawPipe3D(ctx, longStrawPoints, strawColor, strawWidth);
+
+            ctx.fillStyle = '#475569';
+            ctx.beginPath();
+            const lidH = 15;
+            const lidR = 4;
+            roundedRectPath(ctx, jar.x - 5, jar.y - lidH, jar.w + 10, lidH, lidR);
+            ctx.fill();
+
+            drawGraduatedCylinder();
+
+            const cylWaterY = cyl.y + cyl.h - (cyl.h * Math.min(1, transferredVolume / maxCapacity));
+
+            if (isBlowing && transferredVolume < maxCapacity && jarWaterVol > 0) {
+                transferredVolume += 8; 
+                updateUI();
+                for(let i=0; i<4; i++) {
+                    waterParticles.push(new WaterParticle());
+                }
+            }
+
+            for (let i = waterParticles.length - 1; i >= 0; i--) {
+                const p = waterParticles[i];
+                p.update();
+                const targetY = (transferredVolume > 0) ? cylWaterY : (cyl.y + cyl.h);
+                if (p.y > targetY) {
+                    if (Math.random() > 0.5) bubbles.push(new Bubble(p.x, targetY));
+                    waterParticles.splice(i, 1);
+                } else {
+                    p.draw();
+                }
+            }
+
+            for (let i = bubbles.length - 1; i >= 0; i--) {
+                const b = bubbles[i];
+                b.update();
+                if (b.life <= 0) bubbles.splice(i, 1);
+                else b.draw();
+            }
+            
+            if (isBlowing) {
+                 ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+                 ctx.lineWidth = 2;
+                 ctx.beginPath();
+                 let waveW = (Math.sin(Date.now() / 100) * 5) + (jar.w/2 - 10);
+                 ctx.ellipse(jar.x + jar.w/2, jarWaterY, waveW, 5, 0, 0, Math.PI*2);
+                 ctx.stroke();
+            }
+            requestAnimationFrame(animate);
+        }
+
+        function updateUI() {
+            let displayVol = Math.floor(transferredVolume);
+            volumeDisplay.innerText = `${displayVol} ml`;
+            const pct = (transferredVolume / maxCapacity) * 100;
+            volumeBar.style.width = `${pct}%`;
+            if (displayVol < 1000) volumeBar.style.backgroundColor = "#fbbf24";
+            else if (displayVol < 2500) volumeBar.style.backgroundColor = "#22c55e";
+            else volumeBar.style.backgroundColor = "#2563eb";
+        }
+
+        function startBlowing(e) {
+            e.preventDefault(); 
+            if (transferredVolume < maxCapacity) isBlowing = true;
+        }
+
+        function stopBlowing(e) {
+            e.preventDefault();
+            isBlowing = false;
+        }
+
+        blowBtn.addEventListener('mousedown', startBlowing);
+        document.addEventListener('mouseup', stopBlowing);
+        blowBtn.addEventListener('touchstart', startBlowing);
+        blowBtn.addEventListener('touchend', stopBlowing);
+
+        resetBtn.addEventListener('click', () => {
+            transferredVolume = 0;
+            waterParticles = [];
+            bubbles = [];
+            updateUI();
+        });
+
+        animate();
+    </script>
+</body>
+<button onclick="location.href='index.html'" style="
+    position: fixed; 
+    top: 10px; 
+    right: 140px; 
+    padding: 10px 10px; 
+    background: #FFF3eb; 
+    color: green; 
+    border: none; 
+    border-radius: 8px; 
+    cursor: pointer; 
+    z-index: 1000;
+    box-shadow: 0 2px 5px rgba(2,2,2,0.2);
+">🏠</button>
+</html>

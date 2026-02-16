@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Descartes-búvár Szimuláció</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        /* --- FEJLÉC ÉS LÁBLEC STÍLUSOK (Az erő alapjai alapján) --- */
+        .header {
+            background-color: #2563eb;
+            color: white;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 { margin: 0; font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+        .header h1 span { font-weight: 900; opacity: 0.8; font-size: 0.9rem; }
+        
+        .badge { background-color: #1d4ed8; padding: 6px 16px; border-radius: 9999px; font-size: 0.8rem; font-weight: 700; }
+
+        .footer {
+            background-color: #0f172a;
+            padding: 24px;
+            color: white;
+            font-size: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            opacity: 0.95;
+            font-family: monospace;
+        }
+
+        /* --- LAYOUT STRUKTÚRA --- */
+        .page-wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .layout-wrapper {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Desktop nézet */
+        @media (min-width: 1024px) {
+            .layout-wrapper {
+                flex-direction: row;
+            }
+            .info-sidebar {
+                width: 400px;
+                min-width: 350px;
+                height: 100%;
+                border-left: 1px solid #e2e8f0;
+            }
+        }
+
+        .sim-container {
+            position: relative;
+            flex: 1;
+            overflow: hidden;
+            background-color: #f0f9ff;
+        }
+
+        .info-sidebar {
+            background-color: #ffffff;
+            overflow-y: auto;
+            z-index: 20;
+        }
+
+        canvas {
+            display: block;
+            margin: 0 auto;
+        }
+
+        /* Kezelőpanel */
+        .control-panel {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 500px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            text-align: center;
+            z-index: 10;
+            border: 1px solid #e2e8f0;
+        }
+
+        @media (min-width: 1024px) {
+            .control-panel {
+                left: auto !important;
+                right: 40px !important;
+                transform: none !important;
+                bottom: 40px !important;
+                width: 320px !important;
+            }
+        }
+
+        /* QA szekció */
+        .qa-section {
+            padding: 30px 20px;
+        }
+        
+        .qa-item {
+            border-bottom: 1px solid #f1f5f9;
+            margin-bottom: 5px;
+        }
+
+        .qa-question {
+            width: 100%;
+            text-align: left;
+            padding: 16px;
+            background: none;
+            border: none;
+            font-weight: 700;
+            color: #1e293b;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .qa-question:hover { color: #2563eb; background-color: #f8fafc; border-radius: 12px; }
+
+        .qa-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            padding: 0 16px;
+            color: #475569;
+            line-height: 1.6;
+            font-size: 0.9rem;
+        }
+
+        .qa-item.active .qa-answer {
+            max-height: 400px;
+            padding-bottom: 20px;
+        }
+
+        .qa-icon { transition: transform 0.3s; }
+        .qa-item.active .qa-icon { transform: rotate(180deg); }
+
+        /* Slider stílus (Az erő alapjai alapján) */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 999px;
+            outline: none;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 22px;
+            height: 22px;
+            background: #2563eb;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+<button onclick="location.href='index.html'" style="
+    position: fixed; 
+    top: 10px; 
+    right: 140px; 
+    padding: 10px 10px; 
+    background: #FFF3eb; 
+    color: green; 
+    border: none; 
+    border-radius: 8px; 
+    cursor: pointer; 
+    z-index: 1000;
+    box-shadow: 0 2px 5px rgba(2,2,2,0.2);
+">🏠</button>
+    <div class="page-wrapper">
+        <!-- FEJLÉC -->
+        <div class="header">
+            <div class="header-left">
+                <h1><span>FIZIKA</span> 🤿 Descartes-búvár</h1>
+            </div>
+            <div class="header-center font-black text-xl tracking-tighter opacity-80 hidden md:block">DigiFAB</div>
+            <div class="header-right">
+                <span class="badge">6. osztály</span>
+            </div>
+        </div>
+
+        <div class="layout-wrapper">
+            <!-- Bal oldal / Felső rész: Szimuláció -->
+            <div class="sim-container">
+                <canvas id="simCanvas"></canvas>
+
+                <!-- Kezelőfelület -->
+                <div class="control-panel">
+                    <div class="flex items-center justify-center gap-2 mb-3">
+                        <i data-lucide="hand" class="w-5 h-5 text-blue-600"></i>
+                        <label for="pressureSlider" class="text-slate-800 font-black uppercase text-xs tracking-widest">Palack szorítása</label>
+                    </div>
+                    <input type="range" id="pressureSlider" min="0" max="100" value="0">
+                    <div class="flex justify-between text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-tighter">
+                        <span>Nincs nyomás</span>
+                        <span>Erős szorítás</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Jobb oldal / Alsó rész: Információk -->
+            <div class="info-sidebar">
+                <div class="qa-section">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                            <i data-lucide="help-circle" class="w-6 h-6"></i>
+                        </div>
+                        <h2 class="text-xl font-black text-slate-800 uppercase tracking-tight">Hogyan működik?</h2>
+                    </div>
+                    
+                    <div class="qa-item">
+                        <button class="qa-question">
+                            Miért süllyed le a búvár?
+                            <i data-lucide="chevron-down" class="qa-icon w-4 h-4"></i>
+                        </button>
+                        <div class="qa-answer text-justify">
+                            Amikor megszorítod a palackot, megnövekszik benne a nyomás. A víz gyakorlatilag összenyomhatatlan, de a búvárban lévő levegő nem! A nyomás hatására a levegőbuborék összemegy, a helyére pedig víz áramlik. Ettől a búvár nehezebb lesz (nő az átlagos sűrűsége), és amikor nehezebbé válik mint a víz, lesüllyed.
+                        </div>
+                    </div>
+
+                    <div class="qa-item">
+                        <button class="qa-question">
+                            Mi történik a levegővel?
+                            <i data-lucide="chevron-down" class="qa-icon w-4 h-4"></i>
+                        </button>
+                        <div class="qa-answer text-justify">
+                            Ez a <strong>Boyle-Mariotte törvény</strong> élő példája. Ha növeljük a nyomást egy gázon (állandó hőmérsékleten), a térfogata csökken. A szimulációban a nagyítón keresztül láthatod, hogy "szorításkor" a fehér légbuborék kisebb lesz.
+                        </div>
+                    </div>
+
+                    <div class="qa-item">
+                        <button class="qa-question">
+                            Miért emelkedik fel újra?
+                            <i data-lucide="chevron-down" class="qa-icon w-4 h-4"></i>
+                        </button>
+                        <div class="qa-answer text-justify">
+                            Amikor elengeded a palackot, a nyomás lecsökken. A búvár belsejében lévő összenyomott levegő újra kitágul, és kinyomja a felesleges vizet. A búvár ettől "könnyebb" lesz, a felhajtóerő pedig újra a felszínre emeli.
+                        </div>
+                    </div>
+                    
+                    <div class="qa-item">
+                        <button class="qa-question">
+                            Pascal törvénye
+                            <i data-lucide="chevron-down" class="qa-icon w-4 h-4"></i>
+                        </button>
+                        <div class="qa-answer text-justify">
+                            A víz közvetíti a nyomást. Pascal törvénye szerint a folyadékok a külső nyomást minden irányban gyengítetlenül továbbítják. Ezért mindegy, hol szorítod meg a palackot, a nyomás eljut a búvárig és összenyomja a benne lévő levegőt.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LÁBLEC -->
+        <div class="footer">
+            <span>Digitális FABrikáló Műhely</span>
+            <span class="text-blue-500 font-black">.:henz:.</span>
+            <span>Henzel György</span>
+        </div>
+    </div>
+
+    <script>
+        // --- Ikonok inicializálása ---
+        lucide.createIcons();
+
+        // --- QA Logika ---
+        document.querySelectorAll('.qa-question').forEach(button => {
+            button.addEventListener('click', () => {
+                const item = button.parentElement;
+                const isActive = item.classList.contains('active');
+                
+                document.querySelectorAll('.qa-item').forEach(el => el.classList.remove('active'));
+                
+                if (!isActive) {
+                    item.classList.add('active');
+                }
+            });
+        });
+
+        // --- Szimuláció Logika ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const slider = document.getElementById('pressureSlider');
+        const container = document.querySelector('.sim-container');
+
+        let width, height;
+        let pressure = 0; 
+        let visualSqueeze = 0; 
+
+        let diverY = 0;
+        let diverVelocity = 0;
+        const gravity = 0.4; 
+        const drag = 0.92; 
+        
+        const bubbles = [];
+
+        function resize() {
+            width = container.clientWidth;
+            height = container.clientHeight;
+            canvas.width = width;
+            canvas.height = height;
+            if (diverY === 0 || diverY > height) diverY = height * 0.25;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+        setTimeout(resize, 100);
+
+        for(let i=0; i<30; i++) {
+            bubbles.push({
+                x: Math.random() * 200 - 100,
+                y: Math.random() * height,
+                r: Math.random() * 3 + 1,
+                speed: Math.random() * 1.5 + 0.5
+            });
+        }
+
+        function update() {
+            const rawInput = parseInt(slider.value);
+            const targetPressure = rawInput / 100;
+
+            pressure = pressure + (targetPressure - pressure) * 0.15;
+            visualSqueeze = pressure;
+
+            const airVolumeFactor = 1.0 - (pressure * 0.9); 
+            const buoyancyForce = airVolumeFactor * 0.55; 
+
+            diverVelocity += (gravity - buoyancyForce);
+            diverVelocity *= drag; 
+            diverY += diverVelocity;
+
+            const bottleY_adjusted = height * 0.15; 
+            const bottleTopLimit = bottleY_adjusted + 40; 
+            const bottleBottomLimit = bottleY_adjusted + (height * 0.7) - 50; 
+            
+            if (diverY < bottleTopLimit) {
+                diverY = bottleTopLimit;
+                diverVelocity = 0;
+            }
+            if (diverY > bottleBottomLimit) {
+                diverY = bottleBottomLimit;
+                diverVelocity *= -0.2; 
+            }
+
+            draw();
+            requestAnimationFrame(update);
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, width, height);
+
+            const bottleW = Math.min(width * 0.35, 260);
+            const bottleH = height * 0.7; 
+            const bottleX = width * 0.32; 
+            const bottleY = height * 0.15;
+
+            ctx.save();
+            ctx.translate(bottleX, bottleY);
+
+            let waterColor = `rgba(186, 230, 253, ${0.6 + visualSqueeze * 0.3})`;
+
+            drawRealisticBottle(ctx, 0, 0, bottleW, bottleH, visualSqueeze, waterColor, true);
+
+            if (visualSqueeze > 0.05) {
+                const opacity = Math.min(1, visualSqueeze + 0.5); 
+                ctx.fillStyle = `rgba(37, 99, 235, ${opacity})`; 
+                ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
+                
+                const squeezeIndent = visualSqueeze * 25;
+                const arrowY = bottleH * 0.55; 
+                
+                drawArrow(ctx, -bottleW/2 - 70 + squeezeIndent, arrowY, -bottleW/2 + 20, arrowY, 25);
+                drawArrow(ctx, bottleW/2 + 70 - squeezeIndent, arrowY, bottleW/2 - 20, arrowY, 25);
+            }
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            bubbles.forEach(b => {
+                b.y -= b.speed;
+                if (b.y < bottleH * 0.15) b.y = bottleH - 30; 
+                if(Math.abs(b.x) < bottleW/2 - 15) {
+                    ctx.beginPath();
+                    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+
+            const localDiverY = diverY - bottleY; 
+            ctx.save();
+            ctx.translate(0, localDiverY);
+            drawSimpleDiver(ctx, 1.4, pressure, waterColor); 
+            ctx.restore();
+
+            drawRealisticBottle(ctx, 0, 0, bottleW, bottleH, visualSqueeze, null, false);
+            ctx.restore(); 
+
+            ctx.fillStyle = '#64748b';
+            ctx.font = 'bold 12px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText("MAKROSZKÓPOS NÉZET", bottleX, bottleY - 30);
+
+            const magX = width > 1024 ? width * 0.72 : width * 0.75;
+            const magY = height * 0.42; 
+            const magRadius = Math.min(width * 0.14, 150);
+
+            ctx.beginPath();
+            ctx.moveTo(bottleX, diverY + 10); 
+            ctx.lineTo(magX, magY);
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([5, 5]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.save();
+            ctx.translate(magX, magY);
+            ctx.beginPath();
+            ctx.arc(0, 0, magRadius, 0, Math.PI * 2);
+            ctx.clip();
+
+            ctx.fillStyle = waterColor;
+            ctx.fillRect(-magRadius, -magRadius, magRadius*2, magRadius*2);
+            
+            ctx.translate(0, -40); 
+            drawSimpleDiver(ctx, 3.2, pressure, waterColor); 
+
+            const scale = 3.2;
+            const tubeHeight = 60 * scale;
+            
+            ctx.font = 'bold 12px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#1e3a8a';
+            ctx.fillText("LEVEGŐ", 0, -5); 
+            ctx.fillText("VÍZ", 0, tubeHeight/2 + 10);
+
+            if (pressure > 0.1) {
+                 ctx.fillStyle = '#ef4444';
+                 ctx.fillText("NYOMÁS!", 0, tubeHeight + 40);
+                 
+                 ctx.strokeStyle = '#ef4444';
+                 ctx.lineWidth = 3;
+                 ctx.beginPath();
+                 ctx.moveTo(-12, tubeHeight + 15); ctx.lineTo(-12, tubeHeight - 10);
+                 ctx.moveTo(12, tubeHeight + 15); ctx.lineTo(12, tubeHeight - 10);
+                 ctx.stroke();
+                 
+                 ctx.beginPath();
+                 ctx.moveTo(-17, tubeHeight - 5); ctx.lineTo(-12, tubeHeight - 15); ctx.lineTo(-7, tubeHeight - 5);
+                 ctx.moveTo(7, tubeHeight - 5); ctx.lineTo(12, tubeHeight - 15); ctx.lineTo(17, tubeHeight - 5);
+                 ctx.fillStyle = '#ef4444';
+                 ctx.fill();
+            }
+
+            ctx.restore();
+
+            ctx.beginPath();
+            ctx.arc(magX, magY, magRadius, 0, Math.PI * 2);
+            ctx.lineWidth = 8;
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.stroke();
+
+            ctx.beginPath();
+            const angle = Math.PI / 4;
+            const handleLen = 70;
+            const startX = magX + Math.cos(angle) * magRadius;
+            const startY = magY + Math.sin(angle) * magRadius;
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(startX + Math.cos(angle)*handleLen, startY + Math.sin(angle)*handleLen);
+            ctx.lineWidth = 20; 
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#475569';
+            ctx.stroke();
+
+            ctx.fillStyle = '#64748b';
+            ctx.font = 'bold 12px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText("MIKROSZKÓPOS NÉZET", magX, magY - magRadius - 20);
+        }
+
+        function drawRealisticBottle(ctx, x, y, w, h, squeeze, fillColor, drawFill) {
+            const neckW = w * 0.3;
+            const neckH = h * 0.12;
+            const shoulderH = h * 0.15; 
+            const bodyStartY = neckH + shoulderH;
+            const squeezeIndent = squeeze * (w * 0.12);
+            
+            ctx.beginPath();
+            ctx.moveTo(-neckW/2, 0);
+            ctx.lineTo(-neckW/2, neckH);
+            ctx.bezierCurveTo(-neckW/2 - 10, neckH + shoulderH/2, -w/2, neckH + shoulderH/3, -w/2, bodyStartY);
+            ctx.bezierCurveTo(-w/2 + squeezeIndent, h * 0.5, -w/2 + squeezeIndent, h * 0.7, -w/2 + 10, h - 20);
+            ctx.quadraticCurveTo(-w/2 + 15, h, -w/4, h);
+            ctx.quadraticCurveTo(0, h - 10, w/4, h);
+            ctx.quadraticCurveTo(w/2 - 15, h, w/2 - 10, h - 20);
+            ctx.bezierCurveTo(w/2 - squeezeIndent, h * 0.7, w/2 - squeezeIndent, h * 0.5, w/2, bodyStartY);
+            ctx.bezierCurveTo(w/2, neckH + shoulderH/3, neckW/2 + 10, neckH + shoulderH/2, neckW/2, neckH);
+            ctx.lineTo(neckW/2, 0);
+            ctx.closePath();
+
+            if (drawFill && fillColor) {
+                ctx.fillStyle = fillColor;
+                ctx.fill();
+            }
+
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.stroke();
+
+            if (!drawFill) {
+                const capH = 20;
+                const capW = neckW + 6;
+                ctx.fillStyle = '#2563eb'; 
+                ctx.fillRect(-capW/2, -capH - 2, capW, capH);
+                
+                ctx.beginPath();
+                ctx.moveTo(-w/2 + 25, bodyStartY + 30);
+                ctx.bezierCurveTo(-w/2 + 25 + squeezeIndent, h * 0.5, -w/2 + 25 + squeezeIndent, h * 0.7, -w/2 + 35, h - 40);
+                ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+                ctx.lineWidth = 8;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+            }
+        }
+
+        function drawSimpleDiver(ctx, scale, pressureState, waterFillStyle) {
+            const w = 18 * scale;
+            const h = 65 * scale; 
+            const airHeightFactor = 1.0 - (pressureState * 0.9); 
+            const maxAirH = h * 0.5; 
+            const currentAirH = Math.max(0, maxAirH * airHeightFactor); 
+            
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'; 
+            ctx.lineWidth = 2 * scale;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'; 
+            
+            ctx.beginPath();
+            ctx.moveTo(-w/2, h/2);
+            ctx.lineTo(-w/2, -h/2 + w/2);
+            ctx.arc(0, -h/2 + w/2, w/2, Math.PI, 0); 
+            ctx.lineTo(w/2, h/2);
+            ctx.stroke();
+            ctx.fill(); 
+
+            const waterLevelY = -h/2 + w/2 + currentAirH; 
+            ctx.fillStyle = waterFillStyle || '#0ea5e9'; 
+
+            ctx.beginPath();
+            const inset = 2 * scale; 
+            ctx.moveTo(-w/2 + inset, waterLevelY);
+            ctx.lineTo(w/2 - inset, waterLevelY);
+            ctx.lineTo(w/2 - inset, h/2); 
+            ctx.lineTo(-w/2 + inset, h/2);
+            ctx.fill();
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+            ctx.beginPath();
+            ctx.arc(0, -h/2 + w/2, w/2 - inset, Math.PI, 0);
+            ctx.lineTo(w/2 - inset, waterLevelY);
+            ctx.lineTo(-w/2 + inset, waterLevelY);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.7)'; 
+            ctx.fillRect(-w/2 - 1*scale, h/2 - 6*scale, 2*scale, 6*scale);
+            ctx.fillRect(w/2 - 1*scale, h/2 - 6*scale, 2*scale, 6*scale);
+        }
+
+        function drawArrow(ctx, fromX, fromY, toX, toY, headLen) {
+            const angle = Math.atan2(toY - fromY, toX - fromX);
+            const shaftWidth = 12; 
+            const perpX = Math.cos(angle + Math.PI/2);
+            const perpY = Math.sin(angle + Math.PI/2);
+            const headStartX = toX - Math.cos(angle) * headLen;
+            const headStartY = toY - Math.sin(angle) * headLen;
+            ctx.beginPath();
+            ctx.moveTo(fromX + perpX * shaftWidth/2, fromY + perpY * shaftWidth/2);
+            ctx.lineTo(headStartX + perpX * shaftWidth/2, headStartY + perpY * shaftWidth/2);
+            ctx.lineTo(headStartX + perpX * shaftWidth * 1.5, headStartY + perpY * shaftWidth * 1.5);
+            ctx.lineTo(toX, toY);
+            ctx.lineTo(headStartX - perpX * shaftWidth * 1.5, headStartY - perpY * shaftWidth * 1.5);
+            ctx.lineTo(headStartX - perpX * shaftWidth/2, headStartY - perpY * shaftWidth/2);
+            ctx.lineTo(fromX - perpX * shaftWidth/2, fromY - perpY * shaftWidth/2);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        update();
+    </script>
+</body>
+</html>

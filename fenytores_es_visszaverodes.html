@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fénytörés és visszaverődés - DigiFAB</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            margin: 0;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        /* --- FEJLÉC ÉS LÁBLEC --- */
+        .header {
+            background-color: #2563eb;
+            color: white;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 50;
+        }
+        .header h1 { margin: 0; font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+        .header h1 span { font-weight: 900; opacity: 0.8; font-size: 0.9rem; }
+        .badge { background-color: #1d4ed8; padding: 6px 16px; border-radius: 9999px; font-size: 0.8rem; font-weight: 700; }
+
+        .footer {
+            background-color: #0f172a;
+            padding: 20px;
+            color: white;
+            font-size: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            opacity: 0.95;
+            font-family: monospace;
+            z-index: 50;
+        }
+
+        /* --- LAYOUT --- */
+        .layout-wrapper {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 60px - 50px); 
+            flex: 1;
+        }
+        @media (min-width: 1024px) {
+            .layout-wrapper { flex-direction: row; }
+            .sidebar { width: 340px; min-width: 340px; border-left: 1px solid #e2e8f0; }
+        }
+
+        .canvas-area {
+            flex: 1;
+            position: relative;
+            background-color: #f1f5f9;
+            overflow: hidden;
+        }
+        canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+        .sidebar {
+            background-color: white;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* --- UI ELEMEK --- */
+        .control-group label {
+            display: block;
+            font-size: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #64748b;
+            margin-bottom: 6px;
+        }
+        .math-text { font-family: "Times New Roman", Times, serif; font-style: italic; text-transform: none !important; }
+
+        select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            background-color: #f8fafc;
+            font-weight: 600;
+            font-size: 0.875rem;
+            margin-bottom: 12px;
+            outline: none;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 10px;
+            border: 1px solid #f1f5f9;
+            background-color: #f8fafc;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #475569;
+        }
+        
+        input[type="checkbox"] { width: 16px; height: 16px; accent-color: #2563eb; }
+
+        /* --- INFO PANEL JAVÍTÁS --- */
+        .info-panel {
+            background-color: #f1f5f9;
+            padding: 16px;
+            border-radius: 16px;
+            border-left: 4px solid #2563eb;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .data-row {
+            display: flex;
+            justify-content: flex-start; /* Nincs szétnyomva */
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .data-label { color: #64748b; font-size: 0.8rem; min-width: 140px; }
+        .data-value { font-weight: 800; font-family: monospace; font-size: 0.9rem; }
+
+        .comparison {
+            font-weight: 800;
+            color: #1d4ed8;
+            font-size: 0.75rem;
+            padding-top: 6px;
+            border-top: 1px dashed #cbd5e1;
+            margin-top: 4px;
+        }
+
+        .btn-reset {
+            width: 100%;
+            padding: 14px;
+            background-color: #0f172a;
+            color: white;
+            border-radius: 12px;
+            font-weight: 800;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: opacity 0.2s;
+        }
+        .btn-reset:hover { opacity: 0.9; }
+    </style>
+</head>
+<body class="flex flex-col h-screen">
+
+    <!-- FEJLÉC -->
+    <div class="header">
+        <div class="header-left">
+            <h1><span>FIZIKA</span> 🔦 Fénytörés és visszaverődés</h1>
+        </div>
+        <div class="header-center font-black text-xl tracking-tighter opacity-80 hidden md:block">DigiFAB</div>
+        <div class="header-right">
+            <span class="badge">8. osztály</span>
+        </div>
+    </div>
+
+    <div class="layout-wrapper">
+        <div class="canvas-area">
+            <canvas id="opticsCanvas"></canvas>
+            
+            <!-- Instrukció - Jobb alsó sarok, hogy ne takarja a feliratokat -->
+            <div class="absolute bottom-6 right-6 pointer-events-none">
+                <div class="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full border border-slate-200 text-[10px] font-bold text-slate-500 flex items-center gap-2 shadow-sm">
+                    <i data-lucide="mouse-pointer-2" class="w-3 h-3"></i> HÚZD A LÉZERT A SZÖG MÓDOSÍTÁSÁHOZ
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="control-group">
+                <label>Vizsgálat módja</label>
+                <select id="viewMode">
+                    <option value="reflection" selected>Csak visszaverődés</option>
+                    <option value="refraction">Csak fénytörés</option>
+                    <option value="both">Összes jelenség</option>
+                </select>
+
+                <label>Felső közeg (<span class="math-text">n₁</span>)</label>
+                <select id="medium1">
+                    <option value="1.0">Levegő (n=1.0)</option>
+                    <option value="1.33">Víz (n=1.33)</option>
+                    <option value="1.5">Üveg (n=1.5)</option>
+                    <option value="2.42">Gyémánt (n=2.42)</option>
+                </select>
+
+                <label>Alsó közeg (<span class="math-text">n₂</span>)</label>
+                <select id="medium2">
+                    <option value="1.0">Levegő (n=1.0)</option>
+                    <option value="1.33" selected>Víz (n=1.33)</option>
+                    <option value="1.5">Üveg (n=1.5)</option>
+                    <option value="2.42">Gyémánt (n=2.42)</option>
+                </select>
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <label class="checkbox-item">
+                    <input type="checkbox" id="showProtractor" checked>
+                    <span>Szögmérő</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" id="showValues" checked>
+                    <span>Adatok megjelenítése</span>
+                </label>
+            </div>
+
+            <div class="info-panel" id="dataDisplay">
+                <div id="rowAlpha" class="data-row">
+                    <span class="data-label">Beesési szög (<span class="math-text">α</span>):</span>
+                    <span class="data-value"><span id="valAlpha">0</span>°</span>
+                </div>
+                <div id="rowReflection" class="data-row">
+                    <span class="data-label">Visszaverődési szög (<span class="math-text">α'</span>):</span>
+                    <span class="data-value"><span id="valRefl">0</span>°</span>
+                </div>
+                <div id="compReflection" class="comparison">α = α'</div>
+                
+                <div id="rowRefraction" class="data-row">
+                    <span class="data-label">Törési szög (<span class="math-text">β</span>):</span>
+                    <span class="data-value"><span id="valBeta">0</span>°</span>
+                </div>
+                <div id="compRefraction" class="comparison">α > β</div>
+                
+                <div id="tirWarning" class="bg-red-100 text-red-700 p-2 rounded-lg text-center font-black text-[10px] uppercase tracking-wider hidden">
+                    ⚠️ Teljes visszaverődés!
+                </div>
+            </div>
+
+            <div class="mt-auto">
+                <button id="resetBtn" class="btn-reset">
+                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Alaphelyzet
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <span>Digitális FABrikáló Műhely</span>
+        <span class="text-blue-500 font-black">.:henz:.</span>
+        <span>Henzel György</span>
+    </div>
+
+<script>
+    lucide.createIcons();
+
+    const canvas = document.getElementById('opticsCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    const viewModeSelect = document.getElementById('viewMode');
+    const m1Select = document.getElementById('medium1');
+    const m2Select = document.getElementById('medium2');
+    const protractorCheck = document.getElementById('showProtractor');
+    const valuesCheck = document.getElementById('showValues');
+    const resetBtn = document.getElementById('resetBtn');
+    
+    const valAlpha = document.getElementById('valAlpha');
+    const valRefl = document.getElementById('valRefl');
+    const valBeta = document.getElementById('valBeta');
+    const tirWarning = document.getElementById('tirWarning');
+    const rowReflection = document.getElementById('rowReflection');
+    const rowRefraction = document.getElementById('rowRefraction');
+    const compReflection = document.getElementById('compReflection');
+    const compRefraction = document.getElementById('compRefraction');
+
+    let width, height, centerX, centerY;
+    let sourceAngle = Math.PI / 4; 
+    let isDragging = false;
+    let mouseX = 0, mouseY = 0;
+    let beamLen = 220;
+
+    const colors = { "1.0": "#ffffff", "1.33": "#e0f2fe", "1.5": "#d1edff", "2.42": "#bae6ff" };
+
+    function init() {
+        resize();
+        window.addEventListener('resize', resize);
+        canvas.addEventListener('mousedown', startInteraction);
+        canvas.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', () => { isDragging = false; });
+        canvas.addEventListener('touchstart', (e) => { if(e.touches.length > 0) startInteraction(e.touches[0]); }, {passive: false});
+        canvas.addEventListener('touchmove', (e) => { if(e.touches.length > 0) handleMouseMove(e.touches[0]); }, {passive: false});
+        window.addEventListener('touchend', () => isDragging = false);
+
+        resetBtn.addEventListener('click', () => {
+            viewModeSelect.value = "reflection";
+            m1Select.value = "1.0";
+            m2Select.value = "1.33";
+            sourceAngle = Math.PI / 4;
+            protractorCheck.checked = true;
+            valuesCheck.checked = true;
+        });
+
+        requestAnimationFrame(animate);
+    }
+
+    function resize() {
+        const parent = canvas.parentElement;
+        canvas.width = parent.clientWidth;
+        canvas.height = parent.clientHeight;
+        width = canvas.width;
+        height = canvas.height;
+        centerX = width / 2;
+        centerY = height / 2;
+        beamLen = Math.min(width, height) * 0.45;
+    }
+
+    function getMousePos(e) {
+        const rect = canvas.getBoundingClientRect();
+        return { x: (e.clientX || e.pageX) - rect.left, y: (e.clientY || e.pageY) - rect.top };
+    }
+
+    function checkLaserHover(x, y) {
+        const laserX = centerX - Math.cos(sourceAngle) * beamLen;
+        const laserY = centerY - Math.sin(sourceAngle) * beamLen;
+        return Math.sqrt((x - laserX)**2 + (y - laserY)**2) < 50;
+    }
+
+    function startInteraction(e) {
+        const pos = getMousePos(e);
+        if (checkLaserHover(pos.x, pos.y)) isDragging = true;
+    }
+
+    function handleMouseMove(e) {
+        const pos = getMousePos(e);
+        mouseX = pos.x; mouseY = pos.y;
+        if (isDragging && mouseY < centerY) {
+            sourceAngle = Math.atan2(centerY - mouseY, centerX - mouseX);
+        }
+    }
+
+    function animate() {
+        draw();
+        drawCustomCursor();
+        requestAnimationFrame(animate);
+    }
+
+    function drawCustomCursor() {
+        const isHover = checkLaserHover(mouseX, mouseY) || isDragging;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(mouseX, mouseY, isDragging ? 8 : 12, 0, Math.PI * 2);
+        ctx.fillStyle = isHover ? "rgba(37, 99, 235, 0.4)" : "rgba(100, 116, 139, 0.1)"; 
+        ctx.fill();
+        ctx.strokeStyle = isHover ? "rgba(37, 99, 235, 0.8)" : "rgba(100, 116, 139, 0.3)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, width, height);
+
+        const n1 = parseFloat(m1Select.value);
+        const n2 = parseFloat(m2Select.value);
+        const viewMode = viewModeSelect.value;
+        
+        const isIdentical = (n1 === n2);
+        const showRefl = (viewMode === 'reflection' || viewMode === 'both') && !isIdentical;
+        const showRefr = (viewMode === 'refraction' || viewMode === 'both');
+
+        ctx.fillStyle = colors[m1Select.value];
+        ctx.fillRect(0, 0, width, centerY);
+        ctx.fillStyle = colors[m2Select.value];
+        ctx.fillRect(0, centerY, width, height);
+
+        ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(0, centerY); ctx.lineTo(width, centerY); ctx.stroke();
+        
+        ctx.setLineDash([8, 8]);
+        ctx.beginPath(); ctx.moveTo(centerX, 0); ctx.lineTo(centerX, height); ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Beesési merőleges (k) jelölése felül
+        ctx.fillStyle = "#64748b";
+        ctx.font = "italic bold 18px 'Times New Roman'";
+        ctx.textAlign = "left";
+        ctx.fillText("k", centerX + 15, 30);
+
+        if (protractorCheck.checked) drawProtractor();
+
+        // SZÁMÍTÁSOK
+        // dx, dy a lézer irányvektora
+        let dx = Math.cos(sourceAngle);
+        let dy = Math.sin(sourceAngle);
+        
+        // alpha a beesési sugár és a merőleges (y tengely) közötti szög
+        let alpha = Math.abs(Math.PI/2 - sourceAngle);
+        let alphaDeg = Math.round(alpha * 180 / Math.PI);
+        
+        const sinBeta = (n1 / n2) * Math.sin(alpha);
+        const isTIR = sinBeta > 1.0; 
+        let beta = Math.asin(Math.min(1, sinBeta));
+        let betaDeg = Math.round(beta * 180 / Math.PI);
+
+        // Side meghatározása: ha lézer x < centerX, side = 1 (balra van a k-tól), ha x > centerX, side = -1
+        const side = (sourceAngle > Math.PI / 2) ? -1 : 1;
+
+        valAlpha.innerText = alphaDeg;
+        valRefl.innerText = isIdentical ? "-" : alphaDeg;
+        valBeta.innerText = isTIR ? "-" : betaDeg;
+        
+        rowReflection.style.display = showRefl ? 'flex' : 'none';
+        compReflection.style.display = showRefl ? 'block' : 'none';
+        rowRefraction.style.display = (showRefr && !isIdentical) ? 'flex' : 'none';
+        compRefraction.style.display = (showRefr && !isTIR && !isIdentical) ? 'block' : 'none';
+        
+        if (isTIR && showRefr) { tirWarning.classList.remove('hidden'); } 
+        else { tirWarning.classList.add('hidden'); }
+
+        if (showRefl) { compReflection.innerText = `α = α' (${alphaDeg}° = ${alphaDeg}°)`; }
+        if (showRefr && !isTIR && !isIdentical) {
+            let rel = alphaDeg > betaDeg ? ">" : (alphaDeg < betaDeg ? "<" : "=");
+            compRefraction.innerText = `α ${rel} β (${alphaDeg}° ${rel} ${betaDeg}°)`;
+        }
+
+        const laserX = centerX - dx * beamLen;
+        const laserY = centerY - dy * beamLen;
+        drawRay(laserX, laserY, centerX, centerY, "#ef4444", 4);
+
+        if (showRefl || (isTIR && showRefr)) {
+            const reflX = centerX + dx * beamLen;
+            const reflY = centerY - dy * beamLen;
+            const reflColor = (isTIR && showRefr && !showRefl) ? "rgba(239, 68, 68, 0.4)" : (isTIR ? "#ef4444" : "rgba(239, 68, 68, 0.4)");
+            drawRay(centerX, centerY, reflX, reflY, reflColor, 3);
+        }
+
+        if (!isTIR) {
+            const shouldShowPassThrough = showRefr || isIdentical;
+            if (shouldShowPassThrough) {
+                const refrX = centerX + side * Math.sin(beta) * beamLen;
+                const refrY = centerY + Math.cos(beta) * beamLen;
+                const rayColor = isIdentical ? "#ef4444" : "#f59e0b";
+                drawRay(centerX, centerY, refrX, refrY, rayColor, 3);
+            }
+        }
+
+        ctx.save();
+        ctx.translate(laserX, laserY); ctx.rotate(sourceAngle);
+        ctx.fillStyle = "#1e293b"; ctx.fillRect(-25, -12, 40, 24);
+        ctx.fillStyle = "#ef4444"; ctx.beginPath(); ctx.arc(15, 0, 8, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+
+        if (valuesCheck.checked) {
+            ctx.font = "italic bold 16px 'Times New Roman'";
+            ctx.fillStyle = "#1d4ed8";
+            ctx.fillText(`n₁ = ${n1}`, 24, 45);
+            ctx.fillText(`n₂ = ${n2}`, 24, height - 25);
+
+            const baseAngle = -Math.PI/2;
+            drawAngleArc(centerX, centerY, 60, baseAngle - (side * alpha), baseAngle, "#2563eb", "α");
+            
+            if (showRefl) {
+                drawAngleArc(centerX, centerY, 80, baseAngle, baseAngle + (side * alpha), "#ef4444", "α'");
+            }
+            
+            if (showRefr && !isTIR && !isIdentical) {
+                drawAngleArc(centerX, centerY, 60, Math.PI/2, Math.PI/2 - (side * beta), "#d97706", "β");
+            }
+        }
+    }
+
+    function drawRay(x1, y1, x2, y2, color, width) {
+        ctx.save();
+        ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineCap = "round";
+        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+        const midX = (x1 + x2) / 2; const midY = (y1 + y2) / 2; 
+        const angle = Math.atan2(y2 - y1, x2 - x1);
+        ctx.translate(midX, midY); ctx.rotate(angle); 
+        ctx.fillStyle = color;
+        ctx.beginPath(); ctx.moveTo(-10, -6); ctx.lineTo(6, 0); ctx.lineTo(-10, 6); 
+        ctx.fill();
+        ctx.restore();
+    }
+
+    function drawProtractor() {
+        ctx.save();
+        ctx.globalAlpha = 0.1; ctx.strokeStyle = "#334155"; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(centerX, centerY, 150, 0, Math.PI*2); ctx.stroke();
+        for (let i = 0; i < 360; i += 10) {
+            const rad = i * Math.PI / 180;
+            const length = (i % 30 === 0) ? 15 : 8;
+            ctx.beginPath(); ctx.moveTo(centerX + Math.cos(rad)*150, centerY + Math.sin(rad)*150);
+            ctx.lineTo(centerX + Math.cos(rad)*(150-length), centerY + Math.sin(rad)*(150-length)); ctx.stroke();
+            if (i % 30 === 0) {
+                const angleLabel = (i <= 90) ? 90-i : (i <= 180) ? i-90 : (i <= 270) ? 270-i : i-270;
+                ctx.font = "10px Inter"; ctx.textAlign = "center"; ctx.fillText(angleLabel + "°", centerX + Math.cos(rad)*170, centerY + Math.sin(rad)*170 + 4);
+            }
+        }
+        ctx.restore();
+    }
+
+    function drawAngleArc(x, y, r, start, end, color, label) {
+        ctx.save();
+        ctx.strokeStyle = color; ctx.lineWidth = 2;
+        let s = start, e = end;
+        if (s > e) [s, e] = [e, s];
+        if (e - s > Math.PI) [s, e] = [e, s + Math.PI * 2];
+        ctx.beginPath(); ctx.arc(x, y, r, s, e); ctx.stroke();
+        const mid = (s + e) / 2; 
+        ctx.fillStyle = color; 
+        ctx.font = "bold 18px serif"; ctx.textAlign = "center";
+        ctx.fillText(label, x + Math.cos(mid)*(r+25), y + Math.sin(mid)*(r+25) + 6);
+        ctx.restore();
+    }
+
+    init();
+</script>
+</body>
+<button onclick="location.href='index.html'" style="
+    position: fixed; 
+    top: 10px; 
+    right: 140px; 
+    padding: 10px 10px; 
+    background: #FFF3eb; 
+    color: green; 
+    border: none; 
+    border-radius: 8px; 
+    cursor: pointer; 
+    z-index: 1000;
+    box-shadow: 0 2px 5px rgba(2,2,2,0.2);
+">🏠</button>

@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Egyszerű Gépek Szimuláció - DigiFAB</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            margin: 0;
+            touch-action: manipulation;
+        }
+
+        /* --- FEJLÉC ÉS LÁBLEC STÍLUSOK --- */
+        .header {
+            background-color: #2563eb;
+            color: white;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 { margin: 0; font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+        .header h1 span { font-weight: 900; opacity: 0.8; font-size: 0.9rem; }
+        
+        .badge { background-color: #1d4ed8; padding: 6px 16px; border-radius: 9999px; font-size: 0.8rem; font-weight: 700; }
+
+        .footer {
+            background-color: #0f172a;
+            padding: 24px;
+            color: white;
+            font-size: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            opacity: 0.95;
+            font-family: monospace;
+        }
+
+        /* --- SZIMULÁCIÓ SPECIFIKUS STÍLUSOK --- */
+        .lever-bar {
+            transform-origin: center;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .weight-node, .draggable-item {
+            cursor: grab;
+            user-select: none;
+            touch-action: none;
+        }
+        .weight-node:active, .draggable-item:active {
+            cursor: grabbing;
+        }
+        .gauge-bar {
+            transition: width 0.1s linear;
+        }
+        .math-text {
+            font-family: "Times New Roman", Times, serif;
+            font-style: italic;
+            text-transform: none !important; /* Tiltja a nagybetűsítést a képletekben */
+        }
+        #incline-canvas-container {
+            position: relative;
+            width: 100%;
+            height: 450px;
+            background-color: #f8fafc;
+            border-bottom: 4px solid #1e3a8a;
+            overflow: hidden;
+            border-radius: 1rem 1rem 0 0;
+        }
+
+        /* Egyedi csúszka stílus */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 999px;
+            outline: none;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #2563eb;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .active-tab-btn {
+            background-color: #2563eb !important;
+            color: white !important;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        #incline-interactive-group {
+            transform-origin: 32px 64px; 
+        }
+    </style>
+</head>
+<body class="p-0 select-none">
+    <div class="flex flex-col min-h-screen">
+        <!-- FEJLÉC -->
+        <div class="header">
+            <div class="header-left">
+                <h1><span>FIZIKA</span> 🏗️ Egyszerű gépek</h1>
+            </div>
+            <div class="header-center font-black text-xl tracking-tighter opacity-80 hidden md:block">DigiFAB</div>
+            <div class="header-right">
+                <span class="badge">8. osztály</span>
+            </div>
+        </div>
+
+        <main class="flex-grow max-w-6xl mx-auto w-full px-4 py-8">
+            <!-- Szimuláció választó -->
+            <div class="flex flex-wrap justify-center gap-4 mb-10">
+                <button onclick="switchSim('lever')" id="btn-lever" class="active-tab-btn flex items-center gap-2 px-8 py-3.5 rounded-2xl font-black uppercase text-xs tracking-widest transition-all bg-white text-slate-500 border border-slate-200 hover:border-blue-300 shadow-sm">
+                    <i data-lucide="scaling" class="w-4 h-4"></i> Emelő (Mérleghinta)
+                </button>
+                <button onclick="switchSim('inclined')" id="btn-inclined" class="flex items-center gap-2 px-8 py-3.5 rounded-2xl font-black uppercase text-xs tracking-widest transition-all bg-white text-slate-500 border border-slate-200 hover:border-blue-300 shadow-sm">
+                    <i data-lucide="trending-up" class="w-4 h-4"></i> Lejtő (Munkavégzés)
+                </button>
+            </div>
+
+            <!-- Fő tartalom -->
+            <div id="sim-content" class="bg-white rounded-[2rem] shadow-xl p-6 sm:p-10 border border-slate-100">
+                
+                <!-- 1. SZIMULÁCIÓ: EMELŐ -->
+                <div id="lever-sim" class="sim-container">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                        <!-- Vezérlők -->
+                        <div class="bg-slate-50 p-6 rounded-3xl border border-slate-100 shadow-sm">
+                            <h3 class="font-black text-slate-800 mb-8 flex items-center gap-2 uppercase text-xs tracking-widest border-b border-slate-200 pb-3">
+                                <i data-lucide="settings-2" class="w-4 h-4 text-blue-600"></i> Mérési adatok
+                            </h3>
+                            
+                            <div class="mb-10 space-y-5">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs font-black text-slate-500 uppercase tracking-tighter">Tömeg <span class="math-text text-blue-600 font-bold">m<sub>1</sub></span></span>
+                                    <span class="bg-white px-4 py-1.5 rounded-xl border border-slate-200 font-black text-blue-600 font-mono text-lg shadow-sm"><span id="val-m1">20</span> kg</span>
+                                </div>
+                                <input type="range" min="5" max="50" step="5" value="20" id="input-m1">
+                                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Erőkar <span class="math-text">k<sub>1</sub></span> = <span id="val-d1" class="text-slate-700">4</span> egység</p>
+                            </div>
+
+                            <div class="border-t border-slate-200 pt-8 space-y-5">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs font-black text-slate-500 uppercase tracking-tighter">Tömeg <span class="math-text text-emerald-600 font-bold">m<sub>2</sub></span></span>
+                                    <span class="bg-white px-4 py-1.5 rounded-xl border border-slate-200 font-black text-emerald-600 font-mono text-lg shadow-sm"><span id="val-m2">10</span> kg</span>
+                                </div>
+                                <input type="range" min="5" max="50" step="5" value="10" id="input-m2">
+                                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Erőkar <span class="math-text">k<sub>2</sub></span> = <span id="val-d2" class="text-slate-700">2</span> egység</p>
+                            </div>
+                        </div>
+
+                        <!-- Vizualizáció -->
+                        <div class="lg:col-span-2 flex flex-col items-center justify-center p-4">
+                            <div id="lever-status" class="mb-16 px-10 py-4 rounded-2xl font-black text-lg transition-all border-2 shadow-sm uppercase tracking-widest">
+                                Várakozás...
+                            </div>
+
+                            <div id="lever-container" class="relative w-full h-80 flex items-center justify-center overflow-visible">
+                                <div class="absolute bottom-16 w-0 h-0 border-l-[40px] border-l-transparent border-r-[40px] border-r-transparent border-bottom-[70px] border-b-slate-700" style="border-bottom-width: 70px;"></div>
+                                
+                                <div id="lever-bar-visual" class="lever-bar relative w-full h-8 bg-gradient-to-b from-slate-400 to-slate-500 rounded-full flex items-center justify-between shadow-xl">
+                                    <div class="absolute inset-0 flex justify-between px-0 items-center pointer-events-none">
+                                        <div class="h-10 w-1 bg-slate-600 opacity-40"></div>
+                                        <div class="h-8 w-0.5 bg-slate-600 opacity-20"></div>
+                                        <div class="h-8 w-0.5 bg-slate-600 opacity-20"></div>
+                                        <div class="h-8 w-0.5 bg-slate-600 opacity-20"></div>
+                                        <div class="h-8 w-0.5 bg-slate-600 opacity-20"></div>
+                                        <div class="h-14 w-3 bg-slate-900 z-0"></div>
+                                        <div class="h-8 w-0.5 bg-slate-600 opacity-20"></div>
+                                        <div class="h-8 w-0.5 bg-slate-600 opacity-20"></div>
+                                        <div class="h-8 w-0.5 bg-slate-600 opacity-20"></div>
+                                        <div class="h-8 w-0.5 bg-slate-600 opacity-20"></div>
+                                        <div class="h-10 w-1 bg-slate-600 opacity-40"></div>
+                                    </div>
+
+                                    <div id="weight-1-visual" class="weight-node absolute bg-blue-600 text-white rounded-2xl shadow-2xl flex flex-col items-center justify-center border-4 border-blue-800 z-10" style="width: 72px; height: 72px; top: -84px;" onpointerdown="startDrag(event, 1)">
+                                        <span class="math-text font-black text-[12px]">m<sub>1</sub></span>
+                                        <span class="text-xs font-black uppercase tracking-tighter" id="box-m1-val">20 kg</span>
+                                    </div>
+                                    <div id="weight-2-visual" class="weight-node absolute bg-emerald-600 text-white rounded-2xl shadow-2xl flex flex-col items-center justify-center border-4 border-emerald-800 z-10" style="width: 72px; height: 72px; top: -84px;" onpointerdown="startDrag(event, 2)">
+                                        <span class="math-text font-black text-[12px]">m<sub>2</sub></span>
+                                        <span class="text-xs font-black uppercase tracking-tighter" id="box-m2-val">10 kg</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mt-12 text-center bg-blue-900 p-8 rounded-[2rem] shadow-2xl border-4 border-blue-800 w-full max-w-lg">
+                                <div class="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-4">Forgatónyomatékok egyensúlya</div>
+                                <div class="text-3xl font-black text-white font-mono tracking-tighter math-text" id="formula-check">m<sub>1</sub> · k<sub>1</sub> = m<sub>2</sub> · k<sub>2</sub></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. SZIMULÁCIÓ: LEJTŐ -->
+                <div id="inclined-sim" class="sim-container hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                        <!-- Vezérlők -->
+                        <div class="bg-slate-50 p-6 rounded-3xl border border-slate-100 shadow-sm">
+                            <h3 class="font-black text-slate-800 mb-8 flex items-center gap-2 uppercase text-xs tracking-widest border-b border-slate-200 pb-3">
+                                <i data-lucide="sliders" class="w-4 h-4 text-indigo-600"></i> Beállítások
+                            </h3>
+                            
+                            <div class="mb-6 space-y-4">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs font-black text-slate-500 uppercase tracking-tighter">Tömeg <span class="math-text font-bold">m</span></span>
+                                    <span class="bg-white px-3 py-1.5 rounded-xl border border-slate-200 font-black text-indigo-600 font-mono shadow-sm"><span id="val-mass">10</span> kg</span>
+                                </div>
+                                <input type="range" min="2" max="20" step="2" value="10" id="input-mass">
+                            </div>
+
+                            <div class="mb-6 space-y-4">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs font-black text-slate-500 uppercase tracking-tighter">Magasság <span class="math-text font-bold">h</span></span>
+                                    <span class="bg-white px-3 py-1.5 rounded-xl border border-slate-200 font-black text-indigo-600 font-mono shadow-sm"><span id="val-height">1.5</span> m</span>
+                                </div>
+                                <input type="range" min="50" max="250" step="10" value="150" id="input-height">
+                            </div>
+
+                            <div class="mb-8 space-y-4">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs font-black text-slate-500 uppercase tracking-tighter">Dőlésszög <span class="math-text font-bold">&alpha;</span></span>
+                                    <span class="bg-white px-3 py-1.5 rounded-xl border border-slate-200 font-black text-indigo-600 font-mono shadow-sm"><span id="val-angle">30</span>°</span>
+                                </div>
+                                <input type="range" min="10" max="55" step="2" value="30" id="input-angle">
+                            </div>
+
+                            <div class="p-6 bg-slate-900 rounded-3xl shadow-xl text-white space-y-5 border-4 border-slate-800">
+                                <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                                    <span class="text-slate-500 text-[10px] font-black uppercase tracking-widest">Súlyerő <span class="math-text text-red-500 font-bold">F<sub>g</sub></span></span>
+                                    <span id="force-vertical" class="font-mono font-black text-red-500 text-xl tracking-tighter">100 N</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-slate-500 text-[10px] font-black uppercase tracking-widest">Húzóerő <span class="math-text text-emerald-500 font-bold">F<sub>h</sub></span></span>
+                                    <span id="force-incline" class="font-mono font-black text-2xl text-emerald-400 tracking-tighter">50.0 N</span>
+                                </div>
+                                <div class="text-[9px] text-slate-500 italic border-t border-slate-800 pt-3 flex justify-between uppercase font-black">
+                                    <span>Lejtő hossza (<span class="math-text font-bold">l</span>)</span>
+                                    <span id="distance-incline" class="text-white font-mono">3.0 m</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Vizualizáció -->
+                        <div class="lg:col-span-2 flex flex-col">
+                            <div id="incline-canvas-container" class="rounded-[2.5rem] border border-slate-200 shadow-inner overflow-hidden">
+                                <div id="truck-bed" class="absolute right-0 bottom-0 w-48 bg-slate-400 border-l-4 border-slate-500 flex flex-col items-center justify-center text-white font-black uppercase tracking-[0.3em] text-[10px] z-0 shadow-lg" style="writing-mode: vertical-rl;">
+                                    RAKTÉR
+                                </div>
+                                
+                                <svg id="incline-svg" class="absolute bottom-0 left-0 w-full h-full pointer-events-none" preserveAspectRatio="none">
+                                    <path id="incline-path" d="M 0 450 L 400 450 L 400 250 Z" fill="#e2e8f0" stroke="#94a3b8" stroke-width="4" />
+                                </svg>
+
+                                <div id="incline-interactive-group" class="absolute pointer-events-none z-20 flex items-center transition-transform duration-75">
+                                    <div id="load-box" class="draggable-item pointer-events-auto bg-orange-700 border-4 border-orange-950 rounded-2xl shadow-2xl flex flex-col items-center justify-center text-white font-black" style="width: 72px; height: 72px;" onpointerdown="startInclineDrag(event)">
+                                        <span class="math-text opacity-70 text-[12px]">m</span>
+                                        <span class="text-xs uppercase tracking-tighter" id="load-box-val">10 kg</span>
+                                    </div>
+                                    
+                                    <div id="dynamometer" class="draggable-item pointer-events-auto flex items-center" style="height: 48px;" onpointerdown="startInclineDrag(event)">
+                                        <div class="w-10 h-1.5 bg-slate-600"></div>
+                                        <div class="w-8 h-8 border-y-4 border-r-4 border-slate-800 rounded-r-2xl ml-[-4px]"></div>
+                                        
+                                        <div class="w-40 h-12 bg-white border-4 border-blue-600 rounded-2xl relative overflow-hidden shadow-2xl ml-[-2px]">
+                                            <div id="spring-indicator" class="absolute top-0 left-0 h-full bg-blue-500 gauge-bar opacity-80" style="width: 50%;"></div>
+                                            <div class="absolute inset-0 flex justify-between px-3 items-center text-[10px] font-black text-blue-900 opacity-30">
+                                                <span>0</span><span>50</span><span>100</span><span>150</span><span>200</span>
+                                            </div>
+                                        </div>
+                                        <div class="bg-blue-600 text-white px-3 py-1.5 ml-3 rounded-lg text-[10px] font-black shadow-lg border-b-4 border-blue-800 uppercase italic"><span class="math-text">F<sub>h</sub></span></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mt-8 bg-slate-900 p-8 rounded-[2rem] shadow-2xl border-4 border-slate-800 text-white">
+                                <div class="grid grid-cols-2 gap-8">
+                                    <div class="text-center">
+                                        <span class="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-2 block">Erőmegtakarítás</span>
+                                        <div id="savings-percent" class="text-4xl font-black text-emerald-400 font-mono tracking-tighter">50%</div>
+                                    </div>
+                                    <div class="text-center border-l border-slate-800">
+                                        <span class="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-2 block">Út növekedése</span>
+                                        <div id="distance-multiplier" class="text-4xl font-black text-orange-400 font-mono tracking-tighter">2.0x</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Segédlet panelek -->
+            <div class="mt-10 grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="bg-white p-8 rounded-3xl shadow-lg border border-slate-100 border-l-8 border-blue-600">
+                    <h4 class="font-black text-slate-800 mb-6 uppercase text-xs tracking-widest flex items-center gap-2">
+                        <i data-lucide="book-open" class="w-4 h-4 text-blue-600"></i> Fizikai Jelölések
+                    </h4>
+                    <div id="footer-math" class="text-[11px] text-slate-600 grid grid-cols-2 gap-x-8 gap-y-4 font-bold uppercase tracking-tight">
+                        <div class="flex items-center gap-2"><span class="math-text text-blue-600 text-xl font-bold">m</span> tömeg [kg]</div>
+                        <div class="flex items-center gap-2"><span class="math-text text-blue-600 text-xl font-bold">k</span> erőkar [egység]</div>
+                        <div class="flex items-center gap-2"><span class="math-text text-red-600 text-xl font-bold">F<sub>g</sub></span> súlyerő [N]</div>
+                        <div class="flex items-center gap-2"><span class="math-text text-emerald-600 text-xl font-bold">F<sub>h</sub></span> húzóerő [N]</div>
+                        <div class="flex items-center gap-2"><span class="math-text text-orange-600 text-xl font-bold">h</span> magasság [m]</div>
+                        <div class="flex items-center gap-2"><span class="math-text text-slate-900 text-xl font-bold">&alpha;</span> dőlésszög [°]</div>
+                    </div>
+                </div>
+                <div class="bg-blue-50 p-8 rounded-3xl shadow-lg border border-blue-100 border-l-8 border-blue-900 flex flex-col justify-center italic text-slate-700 leading-relaxed font-serif">
+                    <p class="text-lg">„A lejtőn annyiszor kisebb erővel tarthatunk egyensúlyt a súlyerővel szemben, ahányszor a lejtő hossza nagyobb a magasságánál.”</p>
+                    <span class="mt-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">— DigiFAB Fizika Labor</span>
+                </div>
+            </div>
+        </main>
+
+        <!-- LÁBLEC -->
+        <div class="footer">
+            <span>Digitális FABrikáló Műhely</span>
+            <span class="text-blue-500 font-black">.:henz:.</span>
+            <span>Henzel György</span>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        let draggingId = null;
+        let leverDistances = { 1: 4, 2: 2 };
+        
+        let inclineDragActive = false;
+        let inclinePosPercent = 15;
+
+        function switchSim(type) {
+            document.getElementById('lever-sim').classList.toggle('hidden', type !== 'lever');
+            document.getElementById('inclined-sim').classList.toggle('hidden', type !== 'inclined');
+            
+            const btnLever = document.getElementById('btn-lever');
+            const btnInclined = document.getElementById('btn-inclined');
+            
+            if (type === 'lever') {
+                btnLever.classList.add('active-tab-btn');
+                btnInclined.classList.remove('active-tab-btn');
+            } else {
+                btnInclined.classList.add('active-tab-btn');
+                btnLever.classList.remove('active-tab-btn');
+                updateIncline(); 
+            }
+        }
+
+        const leverInputs = {
+            m1: document.getElementById('input-m1'),
+            m2: document.getElementById('input-m2')
+        };
+
+        function updateLever() {
+            const m1 = parseInt(leverInputs.m1.value);
+            const m2 = parseInt(leverInputs.m2.value);
+            const d1 = leverDistances[1];
+            const d2 = leverDistances[2];
+
+            document.getElementById('val-m1').textContent = m1;
+            document.getElementById('val-d1').textContent = d1;
+            document.getElementById('val-m2').textContent = m2;
+            document.getElementById('val-d2').textContent = d2;
+
+            const t1 = m1 * d1;
+            const t2 = m2 * d2;
+            const diff = t2 - t1;
+
+            const bar = document.getElementById('lever-bar-visual');
+            const status = document.getElementById('lever-status');
+            const formula = document.getElementById('formula-check');
+            
+            const rotation = Math.max(-15, Math.min(15, diff * 0.25));
+            bar.style.transform = `rotate(${rotation}deg)`;
+
+            document.getElementById('box-m1-val').textContent = `${m1} kg`;
+            document.getElementById('box-m2-val').textContent = `${m2} kg`;
+
+            const w1v = document.getElementById('weight-1-visual');
+            const w2v = document.getElementById('weight-2-visual');
+            
+            if (draggingId !== 1) {
+                w1v.style.left = `${50 - (d1 * 10)}%`;
+                w1v.style.transform = `translateX(-50%)`;
+            }
+            w1v.style.scale = 0.8 + (m1 / 80);
+
+            if (draggingId !== 2) {
+                w2v.style.left = `${50 + (d2 * 10)}%`;
+                w2v.style.transform = `translateX(-50%)`;
+            }
+            w2v.style.scale = 0.8 + (m2 / 80);
+
+            const eq = Math.abs(diff) < 0.1 ? "=" : "≠";
+            // Képlet szabályos alsóindexekkel és kisbetűkkel
+            formula.innerHTML = `<span class="math-text">m<sub>1</sub> · k<sub>1</sub> = m<sub>2</sub> · k<sub>2</sub></span> <br> <span class="font-mono font-black text-2xl mt-4 block text-white">${m1} · ${d1} ${eq} ${m2} · ${d2}</span>`;
+
+            if (Math.abs(diff) < 0.1) {
+                status.textContent = "⚖️ Egyensúlyban van!";
+                status.className = "mb-16 px-10 py-4 rounded-2xl font-black text-lg bg-emerald-500 text-white shadow-lg border-emerald-600 scale-105";
+            } else {
+                status.textContent = diff > 0 ? "⚠️ Jobbra billen" : "⚠️ Balra billen";
+                status.className = "mb-16 px-10 py-4 rounded-2xl font-black text-lg bg-amber-50 text-amber-800 border-amber-200 shadow-sm";
+            }
+        }
+
+        function startDrag(e, id) {
+            draggingId = id;
+            e.target.setPointerCapture(e.pointerId);
+        }
+
+        function startInclineDrag(e) {
+            inclineDragActive = true;
+            e.target.setPointerCapture(e.pointerId);
+        }
+
+        function handlePointerMove(e) {
+            if (draggingId !== null) {
+                const bar = document.getElementById('lever-bar-visual');
+                const rect = bar.getBoundingClientRect();
+                let relX = (e.clientX - rect.left) / rect.width;
+                relX = Math.max(0, Math.min(1, relX));
+
+                if (draggingId === 1) {
+                    let d = Math.max(1, Math.min(5, Math.round((0.5 - relX) / 0.1)));
+                    leverDistances[1] = d;
+                    document.getElementById('weight-1-visual').style.left = `${relX * 100}%`;
+                } else {
+                    let d = Math.max(1, Math.min(5, Math.round((relX - 0.5) / 0.1)));
+                    leverDistances[2] = d;
+                    document.getElementById('weight-2-visual').style.left = `${relX * 100}%`;
+                }
+                updateLever();
+                return;
+            }
+
+            if (inclineDragActive) {
+                const container = document.getElementById('incline-canvas-container');
+                const rect = container.getBoundingClientRect();
+                const h = parseInt(document.getElementById('input-height').value);
+                const deg = parseInt(document.getElementById('input-angle').value);
+                const rad = deg * (Math.PI / 180);
+                const baseWidth = h / Math.tan(rad);
+                const truckWidth = 192; 
+                const rampEndX = container.clientWidth - truckWidth;
+                const rampStartX = rampEndX - baseWidth;
+
+                let currentX = e.clientX - rect.left;
+                let relPos = (currentX - rampStartX) / baseWidth;
+                inclinePosPercent = Math.max(0, Math.min(100, relPos * 100));
+                
+                updateIncline();
+            }
+        }
+
+        function stopDrag() {
+            draggingId = null;
+            inclineDragActive = false;
+            updateLever();
+            updateIncline();
+        }
+
+        window.addEventListener('pointermove', handlePointerMove);
+        window.addEventListener('pointerup', stopDrag);
+
+        const inclineInputs = {
+            mass: document.getElementById('input-mass'),
+            angle: document.getElementById('input-angle'),
+            height: document.getElementById('input-height')
+        };
+
+        function updateIncline() {
+            const m = parseInt(inclineInputs.mass.value);
+            const deg = parseInt(inclineInputs.angle.value);
+            const h = parseInt(inclineInputs.height.value); 
+            const rad = deg * (Math.PI / 180);
+            
+            const g = 10;
+            const Fg = m * g;
+            const Fh = Fg * Math.sin(rad);
+            const h_m = h / 100;
+            const L_m = h_m / Math.sin(rad);
+
+            document.getElementById('val-mass').textContent = m;
+            document.getElementById('val-angle').textContent = deg;
+            document.getElementById('val-height').textContent = h_m.toFixed(1);
+            document.getElementById('load-box-val').textContent = `${m} kg`;
+            document.getElementById('force-vertical').textContent = `${Fg} N`;
+            document.getElementById('force-incline').textContent = `${Fh.toFixed(1)} N`;
+            document.getElementById('distance-incline').textContent = `${L_m.toFixed(1)} m`;
+            document.getElementById('distance-multiplier').textContent = `${(1/Math.sin(rad)).toFixed(1)}x`;
+            document.getElementById('savings-percent').textContent = `${Math.round(((Fg-Fh)/Fg)*100)}%`;
+
+            const groundY = 450;
+            const truckWidth = 192; 
+            const baseWidth = h / Math.tan(rad);
+            const canvasWidth = document.getElementById('incline-canvas-container').clientWidth || 800;
+            
+            const truckLeft = canvasWidth - truckWidth;
+            const rampStartX = truckLeft - baseWidth;
+            
+            const truckBed = document.getElementById('truck-bed');
+            truckBed.style.height = `${h}px`;
+
+            const path = document.getElementById('incline-path');
+            path.setAttribute('d', `M ${rampStartX} ${groundY} L ${truckLeft} ${groundY} L ${truckLeft} ${groundY - h} Z`);
+
+            const interactiveGroup = document.getElementById('incline-interactive-group');
+            const moveX = (inclinePosPercent / 100) * baseWidth;
+            const moveY = (inclinePosPercent / 100) * h;
+            
+            const baseX = rampStartX + moveX;
+            const baseY = groundY - moveY;
+            
+            interactiveGroup.style.left = `${baseX}px`;
+            interactiveGroup.style.top = `${baseY}px`;
+            
+            interactiveGroup.style.transform = `rotate(${-deg}deg) translate(-36px, -72px)`;
+            
+            const box = document.getElementById('load-box');
+            box.style.scale = 0.8 + (m / 35);
+
+            const indicator = document.getElementById('spring-indicator');
+            const forcePercent = Math.min(100, (Fh / 200) * 100); 
+            indicator.style.width = `${forcePercent}%`;
+        }
+
+        window.onload = () => {
+            updateLever();
+            updateIncline();
+        };
+
+        window.onresize = updateIncline;
+
+        Object.values(leverInputs).forEach(input => input.addEventListener('input', updateLever));
+        Object.values(inclineInputs).forEach(input => input.addEventListener('input', updateIncline));
+    </script>
+</body>
+<button onclick="location.href='index.html'" style="
+    position: fixed; 
+    top: 10px; 
+    right: 140px; 
+    padding: 10px 10px; 
+    background: #FFF3eb; 
+    color: green; 
+    border: none; 
+    border-radius: 8px; 
+    cursor: pointer; 
+    z-index: 1000;
+    box-shadow: 0 2px 5px rgba(2,2,2,0.2);
+">🏠</button>
+</html>

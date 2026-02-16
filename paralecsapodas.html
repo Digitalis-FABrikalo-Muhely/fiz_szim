@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lecsapódás Kísérlet - DigiFAB</title>
+    
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+
+        body {
+            background-color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* --- FEJLÉC ÉS LÁBLEC STÍLUSOK (A lencsék modul alapján) --- */
+        .header {
+            background-color: #2563eb;
+            color: white;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 50;
+        }
+
+        .header h1 { margin: 0; font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+        .header h1 span { font-weight: 900; opacity: 0.8; font-size: 0.9rem; }
+        
+        .badge { background-color: #1d4ed8; padding: 6px 16px; border-radius: 9999px; font-size: 0.8rem; font-weight: 700; }
+
+        .footer {
+            background-color: #0f172a;
+            padding: 20px;
+            color: white;
+            font-size: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            opacity: 0.95;
+            font-family: monospace;
+            z-index: 50;
+            margin-top: auto;
+        }
+
+        /* Egyedi animációk a szimulációhoz */
+        @keyframes blob {
+            0% { transform: translate(0px, 0px) scale(1); }
+            33% { transform: translate(30px, -50px) scale(1.1); }
+            66% { transform: translate(-20px, 20px) scale(0.9); }
+            100% { transform: translate(0px, 0px) scale(1); }
+        }
+        .animate-blob {
+            animation: blob 7s infinite;
+        }
+        .animation-delay-2000 {
+            animation-delay: 2s;
+        }
+        .animation-delay-4000 {
+            animation-delay: 4s;
+        }
+
+        .home-btn {
+            position: fixed; 
+            top: 70px; 
+            right: 20px; 
+            padding: 10px; 
+            background: white; 
+            color: #2563eb; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            z-index: 1000;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: all 0.2s;
+        }
+        .home-btn:hover { background: #f1f5f9; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- Ikonok (SVG komponensek) ---
+        const RotateCcw = (props) => (
+            <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        );
+        const ArrowRight = (props) => (
+            <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        );
+        const Info = (props) => (
+            <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+        );
+        const Hand = (props) => (
+            <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>
+        );
+        const Eye = (props) => (
+            <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+        );
+        const EyeOff = (props) => (
+            <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7c.44 0 .87-.03 1.28-.09"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
+        );
+        const BookOpen = (props) => (
+            <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        );
+        const ChevronDown = (props) => (
+            <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        );
+        const ChevronUp = (props) => (
+            <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+        );
+
+        // --- Fő Komponens ---
+        const CondensationExperiment = () => {
+            const [step, setStep] = useState(0);
+            const [waterTemp, setWaterTemp] = useState(20);
+            const [steamParticles, setSteamParticles] = useState([]);
+            const [droplets, setDroplets] = useState([]);
+            
+            const [bigDropletProgress, setBigDropletProgress] = useState(0);
+            const [ripples, setRipples] = useState([]); 
+
+            const [showLabels, setShowLabels] = useState(true); 
+            const [showExplanation, setShowExplanation] = useState(false);
+
+            const MAX_STEAM = 120; 
+
+            useEffect(() => {
+                let animationFrame;
+
+                const animate = () => {
+                    if (step >= 1) {
+                        const spawnThreshold = 0.1;
+                        if (Math.random() > spawnThreshold && steamParticles.length < MAX_STEAM) {
+                            setSteamParticles(prev => [
+                                ...prev,
+                                {
+                                    id: Math.random(),
+                                    x: 130 + Math.random() * 40,
+                                    y: 295, 
+                                    opacity: 0.0,
+                                    targetOpacity: 0.4 + Math.random() * 0.4, 
+                                    scale: 0.4 + Math.random() * 0.5,
+                                    speed: 0.8 + Math.random() * 1.0,
+                                    emoji: Math.random() > 0.6 ? "☁️" : "💨",
+                                    wobbleOffset: Math.random() * 10
+                                }
+                            ]);
+                        }
+
+                        setSteamParticles(prev => prev
+                            .map(p => {
+                                let newY = p.y - p.speed;
+                                let newOpacity = p.opacity < p.targetOpacity ? p.opacity + 0.08 : p.opacity;
+                                let newX = p.x + (Math.sin((p.y + p.wobbleOffset) / 20) * 0.6);
+
+                                if (step >= 2) {
+                                    const CEILING_LIMIT = 155; 
+                                    const LEFT_WALL = 125;
+                                    const RIGHT_WALL = 215;
+                                    if (newY < CEILING_LIMIT) {
+                                        newY = CEILING_LIMIT + Math.random() * 3; 
+                                        newOpacity -= 0.025; 
+                                    }
+                                    if (newX < LEFT_WALL) newX = LEFT_WALL + Math.random();
+                                    if (newX > RIGHT_WALL) newX = RIGHT_WALL - Math.random();
+                                } else {
+                                    if (newY < 80) newOpacity -= 0.04;
+                                }
+                                return { ...p, y: newY, x: newX, opacity: newOpacity };
+                            })
+                            .filter(p => p.opacity > 0)
+                        );
+                    }
+
+                    // 3. és 4. Lépés gyorsítása
+                    if (step >= 3) {
+                        if (Math.random() > 0.6 && droplets.length < 35) {
+                            setDroplets(prev => [
+                                ...prev,
+                                {
+                                    id: Math.random(),
+                                    x: 125 + Math.random() * 50,
+                                    y: 140 + Math.random() * 15,
+                                    size: 6 + Math.random() * 6
+                                }
+                            ]);
+                        }
+                        
+                        setBigDropletProgress(prev => {
+                            if (prev < 100) return prev + 2.5; 
+                            const fallSpeed = 12.0; 
+                            const nextVal = prev + fallSpeed;
+                            
+                            if (nextVal > 175) {
+                                setRipples(r => [...r, { id: Math.random(), size: 0, opacity: 1 }]);
+                                return Math.random() > 0.3 ? -5 : 0; 
+                            }
+                            return nextVal;
+                        });
+                    }
+
+                    setRipples(prev => prev
+                        .map(r => ({
+                            ...r,
+                            size: r.size + 4.5, 
+                            opacity: r.opacity - 0.08 
+                        }))
+                        .filter(r => r.opacity > 0)
+                    );
+
+                    animationFrame = requestAnimationFrame(animate);
+                };
+
+                if (step > 0) {
+                    animationFrame = requestAnimationFrame(animate);
+                }
+                return () => cancelAnimationFrame(animationFrame);
+            }, [step, steamParticles.length, droplets.length]); 
+
+            const nextStep = () => {
+                if (step < 4) {
+                    setStep(prev => prev + 1);
+                    if (step === 0) setWaterTemp(90);
+                }
+            };
+
+            const resetExperiment = () => {
+                setStep(0);
+                setWaterTemp(20);
+                setSteamParticles([]);
+                setDroplets([]);
+                setBigDropletProgress(0);
+                setRipples([]);
+                setShowExplanation(false);
+            };
+
+            const toggleLabels = () => setShowLabels(!showLabels);
+            const toggleExplanation = () => setShowExplanation(!showExplanation);
+
+            const stepsInfo = [
+                { title: "Előkészületek 🧪", description: "Szükségünk lesz két üvegpohárra, forró vízre és jégkockákra.", action: "Kísérlet indítása" },
+                { title: "1. Lépés: Forró víz 🔥", description: "Töltsük meg az alsó poharat forró vízzel. A víz folyamatosan párolog a hő hatására, gőzzé alakul és felszáll.", action: "Felső pohár ráhelyezése" },
+                { title: "2. Lépés: Lezárás 🔒", description: "Helyezzük a második poharat fejjel lefelé az elsőre. A párolgás folyamatosan zajlik, a gőz feltölti a teret.", action: "Jégkockák ráhelyezése" },
+                { title: "3. Lépés: Hűtés 🧊", description: "Helyezzünk jégkockákat a felső pohár tetejére. A hideg felület elkezdi lehűteni a folyamatosan érkező párát.", action: "Megfigyelés" },
+                { title: "4. Lépés: Víz körforgása 🔄", description: "A pára lecsapódik, cseppekké áll össze, majd visszahullik a vízbe. Ez a folyamat a természetben az eső.", action: "Újrakezdés" }
+            ];
+
+            return (
+                <div className="flex flex-col min-h-screen">
+                    {/* FEJLÉC */}
+                    <div className="header">
+                        <div className="header-left">
+                            <h1><span>FIZIKA</span> 🌧️ Lecsapódás és körforgás</h1>
+                        </div>
+                        <div className="header-center font-black text-xl tracking-tighter opacity-80 hidden md:block">DigiFAB</div>
+                        <div className="header-right">
+                            <span className="badge">7. osztály</span>
+                        </div>
+                    </div>
+
+                    <div className="flex-1 flex flex-col items-center justify-center p-4">
+                        <div className="w-full max-w-4xl bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+                            
+                            <div className="flex flex-col md:flex-row gap-6 p-6">
+                                
+                                {/* Vizualizációs terület */}
+                                <div 
+                                    onClick={() => step < 4 ? nextStep() : resetExperiment()}
+                                    className="flex-1 bg-gradient-to-b from-blue-50 to-white rounded-2xl shadow-inner border border-slate-300 p-4 flex justify-center items-center relative min-h-[400px] md:min-h-[500px] overflow-hidden cursor-pointer group hover:shadow-lg transition-all duration-300 select-none"
+                                >
+                                    {/* Háttér dekoráció */}
+                                    <div className="absolute inset-0 opacity-30 pointer-events-none">
+                                        <div className="absolute top-[-10%] left-[-10%] w-72 h-72 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
+                                        <div className="absolute top-[-10%] right-[-10%] w-72 h-72 bg-yellow-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
+                                        <div className="absolute bottom-[-20%] left-[20%] w-72 h-72 bg-pink-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
+                                    </div>
+
+                                    <div className="absolute top-4 right-4 text-slate-400 opacity-50 group-hover:opacity-100 transition-opacity flex items-center gap-2 text-xs font-bold pointer-events-none z-20">
+                                        <Hand className="w-4 h-4 animate-pulse" />
+                                        Kattints a folytatáshoz
+                                    </div>
+
+                                    <div className="relative w-[340px] h-[440px] pointer-events-none z-10 scale-90 md:scale-100 transition-transform">
+                                        <svg viewBox="0 0 340 440" className="w-full h-full drop-shadow-2xl" style={{ overflow: 'visible' }}>
+                                            <defs>
+                                                <linearGradient id="realGlass" x1="0%" y1="0%" x2="100%" y2="0%">
+                                                    <stop offset="0%" stopColor="rgba(220, 230, 240, 0.4)" />
+                                                    <stop offset="50%" stopColor="rgba(255, 255, 255, 0.05)" />
+                                                    <stop offset="100%" stopColor="rgba(220, 230, 240, 0.4)" />
+                                                </linearGradient>
+                                                <linearGradient id="glassRim" x1="0%" y1="0%" x2="100%" y2="0%">
+                                                    <stop offset="0%" stopColor="rgba(200, 215, 230, 0.8)" />
+                                                    <stop offset="50%" stopColor="rgba(255, 255, 255, 0.9)" />
+                                                    <stop offset="100%" stopColor="rgba(200, 215, 230, 0.8)" />
+                                                </linearGradient>
+                                                <linearGradient id="water3D" x1="0%" y1="0%" x2="100%" y2="0%">
+                                                    <stop offset="0%" stopColor="#0288d1" />
+                                                    <stop offset="50%" stopColor="#4fc3f7" />
+                                                    <stop offset="100%" stopColor="#0288d1" />
+                                                </linearGradient>
+                                                <filter id="blurFilter"><feGaussianBlur in="SourceGraphic" stdDeviation="1.5" /></filter>
+                                                <filter id="textGlow"><feDropShadow dx="0" dy="0" stdDeviation="2" floodColor="white" floodOpacity="0.8" /></filter>
+                                            </defs>
+
+                                            <path d="M20,410 L320,410 L300,430 L40,430 Z" fill="#8d6e63" stroke="#5d4037" strokeWidth="1" />
+                                            
+                                            <g transform="translate(0, 0)">
+                                                <ellipse cx="170" cy="395" rx="58" ry="10" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
+                                                <path d="M110,260 L115,395 L225,395 L230,260" fill="url(#realGlass)" stroke="rgba(255,255,255,0.4)" strokeWidth="1" />
+                                                
+                                                <g className={`transition-all duration-1000 ${step >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+                                                    <path d="M113,388 L113,300 L227,300 L227,388 C227,394 200,398 170,398 C140,398 113,394 113,388" fill="url(#water3D)" opacity="0.85" />
+                                                    <ellipse cx="170" cy="300" rx="57" ry="9" fill="#81d4fa" opacity="0.9" stroke="rgba(255,255,255,0.5)" strokeWidth="1" />
+                                                    {ripples.map(r => (
+                                                        <ellipse key={r.id} cx="170" cy="300" rx={r.size} ry={r.size / 3} fill="none" stroke="white" strokeWidth="2" opacity={r.opacity} />
+                                                    ))}
+                                                </g>
+
+                                                <path d="M110,260 L115,395 C115,405 140,405 170,405 C200,405 225,405 225,395 L230,260" fill="url(#realGlass)" stroke="rgba(200, 220, 240, 0.6)" strokeWidth="2" />
+                                                <path d="M120,270 L124,390" stroke="rgba(255,255,255,0.7)" strokeWidth="3" strokeLinecap="round" opacity="0.4" />
+                                                <ellipse cx="170" cy="260" rx="60" ry="10" fill="none" stroke="url(#glassRim)" strokeWidth="3" />
+                                            </g>
+
+                                            <g style={{ pointerEvents: 'none', opacity: showLabels ? 1 : 0, transition: 'opacity 0.3s' }}>
+                                                <text x="240" y="320" className={`transition-all duration-500 font-bold fill-red-600 text-sm ${step >= 1 ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4'}`} style={{ filter: 'url(#textGlow)' }}>⬆️ PÁROLGÁS</text>
+                                                <text x="50" y="110" className={`transition-all duration-500 font-bold fill-cyan-600 text-sm ${step >= 3 ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'}`} style={{ filter: 'url(#textGlow)' }}>❄️ HŰTÉS</text>
+                                                <text x="230" y="160" className={`transition-all duration-500 font-bold fill-blue-600 text-sm ${step >= 4 ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4'}`} style={{ filter: 'url(#textGlow)' }}>💧 LECSAPÓDÁS</text>
+                                                <text x="70" y="220" className={`transition-all duration-300 font-bold fill-blue-800 text-sm ${step >= 4 && bigDropletProgress > 100 ? 'opacity-100' : 'opacity-0'}`} style={{ filter: 'url(#textGlow)' }}>⬇️ CSAPADÉK</text>
+                                            </g>
+
+                                            {steamParticles.map(p => (
+                                                <text key={p.id} x={p.x} y={p.y} fontSize={`${22 * p.scale}px`} fill="white" opacity={p.opacity} style={{ transition: 'all 0.1s linear' }} textAnchor="middle">{p.emoji}</text>
+                                            ))}
+
+                                            <g className={`transition-all duration-700 ease-out ${step >= 2 ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-16'}`}>
+                                                <path d="M110,260 L115,130 C115,120 225,120 225,130 L230,260" fill="url(#realGlass)" stroke="rgba(200, 220, 240, 0.6)" strokeWidth="1" />
+                                                <ellipse cx="170" cy="130" rx="55" ry="8" fill="rgba(220, 230, 240, 0.3)" stroke="rgba(255,255,255,0.5)" strokeWidth="2" />
+                                                <path d="M120,250 L124,140" stroke="rgba(255,255,255,0.6)" strokeWidth="2" strokeLinecap="round" opacity="0.3" />
+                                                <ellipse cx="170" cy="260" rx="60" ry="10" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2" />
+                                            </g>
+
+                                            <g className={`transition-all duration-500 ${step >= 3 ? 'opacity-100 scale-100' : 'opacity-0 scale-50'}`} style={{transformOrigin: '170px 110px'}}>
+                                                <ellipse cx="170" cy="130" rx="50" ry="12" fill="#e1f5fe" opacity="0.5" filter="url(#blurFilter)" />
+                                                <text x="155" y="115" textAnchor="middle" fontSize="40px" style={{ filter: 'drop-shadow(0px 3px 5px rgba(0,0,0,0.1))' }}>🧊</text>
+                                                <text x="185" y="115" textAnchor="middle" fontSize="40px" style={{ filter: 'drop-shadow(0px 3px 5px rgba(0,0,0,0.1))' }}>🧊</text>
+                                                <text x="170" y="125" textAnchor="middle" fontSize="42px" style={{ filter: 'drop-shadow(0px 4px 6px rgba(0,0,0,0.15))' }}>🧊</text>
+                                            </g>
+
+                                            {step >= 3 && droplets.map(d => (
+                                                <text key={d.id} x={d.x} y={d.y} fontSize={`${d.size}px`} style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,50,0.2))' }} textAnchor="middle" className="animate-pulse">💧</text>
+                                            ))}
+
+                                            {step >= 4 && bigDropletProgress > 10 && bigDropletProgress < 180 && (
+                                                <g transform={`translate(170, ${150 + (bigDropletProgress > 100 ? (bigDropletProgress - 100) * 2 : 0)})`}>
+                                                    <text fontSize={`${Math.min(28, 12 + bigDropletProgress/4)}px`} textAnchor="middle" opacity={bigDropletProgress > 170 ? 1 - ((bigDropletProgress - 170) / 10) : 0.9} style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,100,0.3))' }}>💧</text>
+                                                </g>
+                                            )}
+
+                                            <g style={{ pointerEvents: 'none' }}>
+                                                {step >= 1 && (
+                                                    <foreignObject x="0" y="320" width="80" height="40" className="transition-opacity duration-500">
+                                                        <div className="bg-white/80 backdrop-blur border border-blue-200 text-blue-900 text-xs font-bold px-2 py-1 rounded shadow-sm transform -rotate-3 text-center">🔥 90°C</div>
+                                                    </foreignObject>
+                                                )}
+                                                {step >= 3 && (
+                                                    <foreignObject x="260" y="60" width="80" height="40" className="transition-opacity duration-500">
+                                                        <div className="bg-cyan-50/80 backdrop-blur border border-cyan-200 text-cyan-900 text-xs font-bold px-2 py-1 rounded shadow-sm text-center">🧊 0°C</div>
+                                                    </foreignObject>
+                                                )}
+                                            </g>
+                                        </svg>
+                                    </div>
+                                </div>
+
+                                {/* Vezérlő Panel */}
+                                <div className="w-full md:w-1/3 flex flex-col justify-between gap-4">
+                                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xl flex flex-col h-full relative z-10">
+                                        <div className="flex justify-between items-start mb-4 pb-4 border-b border-slate-100">
+                                            <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-widest">
+                                                <Info className="w-4 h-4" />
+                                                Fázis {step + 1} / 5
+                                            </div>
+                                            <button onClick={toggleLabels} className="flex items-center gap-2 text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full hover:bg-blue-100 transition-colors">
+                                                {showLabels ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                                                {showLabels ? "Feliratok BE" : "Feliratok KI"}
+                                            </button>
+                                        </div>
+
+                                        <h2 className="text-2xl font-bold text-slate-800 mb-3">{stepsInfo[step].title}</h2>
+                                        <p className="text-slate-600 leading-relaxed font-medium mb-4">{stepsInfo[step].description}</p>
+
+                                        <div className="mt-auto">
+                                            <button onClick={toggleExplanation} className="w-full flex items-center justify-between p-3 bg-blue-50 text-blue-800 font-bold rounded-lg hover:bg-blue-100 transition-colors mb-2">
+                                                <div className="flex items-center gap-2"><BookOpen className="w-4 h-4" />Tudományos háttér</div>
+                                                {showExplanation ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                            </button>
+                                            {showExplanation && (
+                                                <div className="p-4 bg-white border border-blue-100 rounded-lg text-sm text-blue-900 shadow-inner">
+                                                    {step === 0 && "Ez a kísérlet a természetben zajló vízkörforgást modellezi kicsiben."}
+                                                    {step === 1 && "Párolgás: A hő hatására a folyékony víz párává válik és felszáll."}
+                                                    {step === 2 && "A zárt rendszerben a pára nem szökik el."}
+                                                    {step === 3 && "Hűtés: A hideg felület (jég) elvonja a hőt a párától."}
+                                                    {step === 4 && "Lecsapódás: A pára visszaalakul vízzé és csapadékként lehullik."}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-col gap-4 relative z-10">
+                                        {step < 4 ? (
+                                            <button onClick={nextStep} className="group w-full py-4 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-xl shadow-lg transition-all flex items-center justify-center gap-3 text-lg font-bold transform active:scale-[0.98]">
+                                                {stepsInfo[step].action}<ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                                            </button>
+                                        ) : (
+                                            <button onClick={resetExperiment} className="w-full py-4 bg-slate-800 hover:bg-slate-900 text-white rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 text-lg font-bold">
+                                                <RotateCcw className="w-5 h-5" />Kísérlet újrakezdése
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* LÁBLEC */}
+                    <div className="footer">
+                        <span>Digitális FABrikáló Műhely</span>
+                        <span className="text-blue-500 font-black">.:henz:.</span>
+                        <span>Henzel György</span>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<CondensationExperiment />);
+    </script>
+</body>
+</body>
+<button onclick="location.href='index.html'" style="
+    position: fixed; 
+    top: 10px; 
+    right: 140px; 
+    padding: 10px 10px; 
+    background: #FFF3eb; 
+    color: green; 
+    border: none; 
+    border-radius: 8px; 
+    cursor: pointer; 
+    z-index: 1000;
+    box-shadow: 0 2px 5px rgba(2,2,2,0.2);
+">🏠</button>
+</html>
