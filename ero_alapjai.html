@@ -966,10 +966,10 @@
         };
     </script>
 </body>
-<button onclick="location.href='index.html'" style="
+<button onclick="const last = sessionStorage.getItem('lastIndexPage'); window.location.href = last ? last : 'index.html';" style="
     position: fixed; 
-    top: 40px; 
-    right: 160px; 
+    top: 10px; 
+    right: 140px; 
     padding: 10px 10px; 
     background: #FFF3eb; 
     color: green; 

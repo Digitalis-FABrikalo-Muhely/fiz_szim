@@ -16,6 +16,7 @@
             touch-action: none;
         }
 
+        /* --- FEJLÉC ÉS LÁBLEC STÍLUSOK (Az erő alapjai alapján) --- */
         .header {
             background-color: #2563eb;
             color: white;
@@ -45,6 +46,7 @@
             z-index: 50;
         }
 
+        /* --- LAYOUT --- */
         .layout-wrapper {
             display: flex;
             flex-direction: column;
@@ -82,6 +84,7 @@
             box-shadow: -4px 0 15px rgba(0,0,0,0.02);
         }
 
+        /* --- UI ELEMEK --- */
         .measurement-card {
             background-color: #f8fafc;
             border-radius: 16px;
@@ -135,9 +138,10 @@
 </head>
 <body class="flex flex-col h-screen">
 
+    <!-- FEJLÉC -->
     <div class="header">
         <div class="header-left">
-            <h1><span>FIZIKA</span> 🐡 Fénytörés</h1>
+            <h1><span>FIZIKA</span> 🐟 Fénytörés</h1>
         </div>
         <div class="header-center font-black text-xl tracking-tighter opacity-80 hidden md:block">DigiFAB</div>
         <div class="header-right">
@@ -146,13 +150,11 @@
     </div>
 
     <div class="layout-wrapper">
+        <!-- Canvas terület -->
         <div class="canvas-area">
             <canvas id="opticsCanvas"></canvas>
             
-            <div id="miss-feedback" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-0 transition-opacity duration-300 z-40">
-                <span class="bg-red-600/90 backdrop-blur-sm text-white px-8 py-4 rounded-2xl font-black text-2xl shadow-2xl uppercase tracking-widest border-2 border-white/20">Eltévesztetted!</span>
-            </div>
-
+            <!-- Adatkijelzők a képen -->
             <div id="data-displays" class="absolute bottom-6 left-6 grid grid-cols-2 gap-3 opacity-0 transition-opacity duration-300 pointer-events-none">
                 <div class="bg-white/90 backdrop-blur px-4 py-2 rounded-xl border border-orange-200 shadow-sm">
                     <span class="text-[9px] font-black text-orange-800 uppercase block">Célzási szög</span>
@@ -165,6 +167,7 @@
             </div>
         </div>
 
+        <!-- Vezérlőpanel -->
         <div class="sidebar">
             <div class="control-group">
                 <span class="control-label">Környezet</span>
@@ -209,6 +212,7 @@
         </div>
     </div>
 
+    <!-- LÁBLEC -->
     <div class="footer">
         <span>Digitális FABrikáló Műhely</span>
         <span class="text-blue-500 font-black">.:henz:.</span>
@@ -228,7 +232,6 @@
         const toggleStaticArrowBtn = document.getElementById('toggle-static-arrow');
         const toggleSunBtn = document.getElementById('toggle-sun');
         const dataDisplays = document.getElementById('data-displays');
-        const missFeedback = document.getElementById('miss-feedback');
 
         let showRealFish = false, showRayPath = false, showStaticArrow = false, isSunOn = false;
         let width, height;
@@ -242,7 +245,6 @@
         let lastMouseX = 0, lastMouseY = 0;
         let projectiles = [];
         let hitArrows = []; 
-        let feedbackTimer = null;
 
         const n1 = 1.00; 
         const n2 = 1.33; 
@@ -262,14 +264,6 @@
                 else right = mid;
             }
             return (left + right) / 2;
-        }
-
-        function triggerMissFeedback() {
-            if (feedbackTimer) clearTimeout(feedbackTimer);
-            missFeedback.classList.replace('opacity-0', 'opacity-100');
-            feedbackTimer = setTimeout(() => {
-                missFeedback.classList.replace('opacity-100', 'opacity-0');
-            }, 1200);
         }
 
         toggleSunBtn.addEventListener('click', () => {
@@ -300,7 +294,6 @@
             toggleStaticArrowBtn.innerHTML = '<i data-lucide="target" class="w-4 h-4"></i> Íj megjelenítése';
             lucide.createIcons();
             dataDisplays.classList.replace('opacity-100', 'opacity-0');
-            missFeedback.classList.replace('opacity-100', 'opacity-0');
         }
 
         toggleRealFishBtn.addEventListener('click', () => {
@@ -397,15 +390,20 @@
             ctx.scale(-1, 1); 
             ctx.fillStyle = isSunOn ? '#1e40af' : '#1e293b'; 
             ctx.beginPath(); 
+            // Törzs
             if (ctx.roundRect) ctx.roundRect(-15, -65, 30, 42, 8);
             else ctx.rect(-15, -65, 30, 42);
             ctx.fill();
+            // Lábak
             ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 14; ctx.lineCap = 'round';
             ctx.beginPath(); ctx.moveTo(-7, -28); ctx.lineTo(-18, -2); ctx.moveTo(7, -28); ctx.lineTo(18, -2); ctx.stroke();
+            // Karok
             ctx.strokeStyle = isSunOn ? '#fca5a5' : '#8a5c5c'; ctx.lineWidth = 6;
             ctx.beginPath(); ctx.moveTo(-10, -55); ctx.lineTo(-42, -45); ctx.moveTo(10, -55); ctx.lineTo(36, -48); ctx.stroke();
+            // Fej
             ctx.fillStyle = isSunOn ? '#fca5a5' : '#8a5c5c';
             ctx.beginPath(); ctx.arc(0, -82, 16, 0, Math.PI * 2); ctx.fill();
+            // Kalap
             ctx.fillStyle = '#334155'; ctx.beginPath(); ctx.ellipse(0, -94, 24, 8, 0, 0, Math.PI * 2); ctx.fill();
             ctx.fillRect(-12, -104, 24, 12);
             ctx.restore();
@@ -503,8 +501,6 @@
                 const p = projectiles[i];
                 p.x += p.vx; p.y += p.vy;
                 const dist = Math.sqrt((p.x - lockedFishX)**2 + (p.y - lockedFishY)**2);
-                
-                // TALÁLAT
                 if (dist < 25) { 
                     if (!showRealFish) {
                         showRealFish = true;
@@ -515,12 +511,7 @@
                     projectiles.splice(i, 1);
                     continue;
                 }
-                
-                // MELLÉLÖVÉS
-                if (p.x < 0 || p.x > width || p.y < 0 || p.y > height) {
-                    projectiles.splice(i, 1);
-                    triggerMissFeedback();
-                }
+                if (p.x < 0 || p.x > width || p.y < 0 || p.y > height) projectiles.splice(i, 1);
             }
         }
 
@@ -563,33 +554,17 @@
                 const activeAppY = showStaticArrow ? lockedApparentY : currentAppY;
                 const activeHitX = showStaticArrow ? lockedHitX : hitX;
 
-                // LÁTSZÓLAGOS HAL (NARANCSSÁRGA)
-                ctx.save(); 
-                ctx.translate(activeAppX, activeAppY); 
-                ctx.globalAlpha = 0.5; 
-                ctx.shadowBlur = 15; ctx.shadowColor = "white";
-                ctx.fillStyle = "#ff9900"; 
-                ctx.font = "52px Arial"; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; 
-                ctx.fillText("🐡", 0, 0);
+                // Látszólagos hal
+                ctx.save(); ctx.translate(activeAppX, activeAppY); ctx.globalAlpha = 0.5; ctx.shadowBlur = 15; ctx.shadowColor = "white";
+                ctx.font = "52px Arial"; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText("🐟", 0, 0);
                 ctx.restore();
 
+                // VALÓDI HELYZET ÉS SUGÁRMENET
                 if (showRealFish) {
-                    // VALÓDI HAL (NARANCSSÁRGA)
-                    ctx.save(); 
-                    ctx.translate(activeFishX, activeFishY); 
-                    ctx.fillStyle = "#ff4500"; 
-                    ctx.font = "52px Arial"; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; 
-                    ctx.fillText("🐡", 0, 0);
+                    ctx.save(); ctx.translate(activeFishX, activeFishY); ctx.font = "52px Arial"; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText("🐟", 0, 0);
                     ctx.restore();
-
                     hitArrows.forEach(drawProjectile);
-                    
-                    // Látóvonal nyilak nélkül
-                    ctx.save();
-                    ctx.setLineDash([8, 8]); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.globalAlpha = 0.6;
-                    ctx.beginPath(); ctx.moveTo(activeAppX, activeAppY); ctx.lineTo(activeHitX, centerY); ctx.lineTo(eyeX, eyeY);
-                    ctx.stroke(); ctx.restore();
-
+                    animatePath([{x: activeAppX, y: activeAppY}, {x: activeHitX, y: centerY}, {x: eyeX, y: eyeY}], '#ffffff', true, 180, true);
                     const hitSunX = findRefractionPoint(sunX, sunY, activeFishX, activeFishY, centerY, n1, n2);
                     animatePath([{x: sunX, y: sunY}, {x: hitSunX, y: centerY}, {x: activeFishX, y: activeFishY}], '#fbbf24', false, 300);
                     drawNormal(hitSunX, centerY); 
@@ -600,10 +575,7 @@
                 if (showStaticArrow) {
                     drawBow(eyeX - 45, eyeY + 25);
                     if (!showRealFish) {
-                        ctx.save();
-                        ctx.setLineDash([8, 8]); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.globalAlpha = 0.6;
-                        ctx.beginPath(); ctx.moveTo(lockedApparentX, lockedApparentY); ctx.lineTo(lockedHitX, centerY); ctx.lineTo(eyeX, eyeY);
-                        ctx.stroke(); ctx.restore();
+                        animatePath([{x: lockedApparentX, y: lockedApparentY}, {x: lockedHitX, y: centerY}, {x: eyeX, y: eyeY}], '#ffffff', true, 180, true);
                     }
                 }
                 projectiles.forEach(drawProjectile);
@@ -624,7 +596,7 @@
         animate();
     </script>
 </body>
-<button onclick="location.href='index.html'" style="
+<button onclick="const last = sessionStorage.getItem('lastIndexPage'); window.location.href = last ? last : 'index.html';" style="
     position: fixed; 
     top: 10px; 
     right: 140px; 
@@ -637,5 +609,4 @@
     z-index: 1000;
     box-shadow: 0 2px 5px rgba(2,2,2,0.2);
 ">🏠</button>
-
 </html>

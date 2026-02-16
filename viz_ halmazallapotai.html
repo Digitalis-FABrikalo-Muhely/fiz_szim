@@ -17,18 +17,16 @@
             touch-action: none;
         }
 
-        /* --- FEJLÉC STÍLUSOK --- */
+        /* --- FEJLÉC ÉS LÁBLEC STÍLUSOK --- */
         .header {
             background-color: #2563eb;
             color: white;
-            padding: 12px 24px;
+            padding: 16px 24px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             z-index: 50;
-            height: 60px;
-            flex-shrink: 0;
         }
 
         .header h1 { margin: 0; font-size: 1.15rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
@@ -38,7 +36,7 @@
 
         .footer {
             background-color: #0f172a;
-            padding: 10px 20px;
+            padding: 20px;
             color: white;
             font-size: 10px;
             display: flex;
@@ -47,28 +45,19 @@
             opacity: 0.95;
             font-family: monospace;
             z-index: 50;
-            height: 40px;
-            flex-shrink: 0;
         }
 
-        /* --- LAYOUT (RESPONZÍV) --- */
+        /* --- LAYOUT --- */
         .layout-wrapper {
             display: flex;
             flex-direction: column;
-            height: calc(100vh - 60px - 40px);
+            height: calc(100vh - 60px - 50px); 
             flex: 1;
-            overflow: hidden;
         }
 
-        /* Desktop nézet: Row layout, Sidebar szélesség optimalizálva */
         @media (min-width: 1024px) {
             .layout-wrapper { flex-direction: row; }
-            .sidebar { 
-                width: 450px; /* Csökkentett szélesség a jobb helykihasználásért */
-                min-width: 400px; 
-                border-left: 1px solid #e2e8f0; 
-                height: 100%;
-            }
+            .sidebar { width: 600px; min-width: 600px; border-left: 1px solid #e2e8f0; }
         }
 
         .canvas-area {
@@ -90,26 +79,22 @@
         .sidebar {
             background-color: white;
             overflow-y: auto;
-            padding: 16px;
+            padding: 24px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 20px;
             box-shadow: -4px 0 15px rgba(0,0,0,0.02);
-            /* Mobilon 100% szélesség */
         }
 
         /* --- UI ELEMEK --- */
         .measurement-card {
             background-color: #f8fafc;
-            border-radius: 20px;
-            padding: 16px;
+            border-radius: 24px;
+            padding: 24px;
             border: 1px solid #e2e8f0;
             flex: 1;
             display: flex;
             flex-direction: column;
-            position: relative;
-            justify-content: center;
-            min-height: min-content; /* Biztosítja, hogy ne nyomódjon össze túlságosan */
         }
 
         .control-label {
@@ -119,25 +104,23 @@
             text-transform: uppercase;
             letter-spacing: 0.1em;
             color: #64748b;
-            margin-bottom: 4px;
+            margin-bottom: 8px;
         }
 
-        /* MŰSZEREK MÉRETE: 260px (Változatlan) */
+        /* Függőleges műszerek - 250px magas */
         .meter-container {
             position: relative;
-            height: 260px; 
-            width: 45px;
+            height: 250px; 
+            width: 50px;
             background: #e2e8f0;
             border-radius: 25px;
             border: 3px solid #94a3b8;
-            box-sizing: border-box; 
-            flex-shrink: 0;
         }
 
         .meter-fill-wrapper {
             position: absolute;
             inset: 0;
-            border-radius: 20px;
+            border-radius: 22px;
             overflow: hidden;
             z-index: 1;
         }
@@ -155,8 +138,8 @@
         /* Skála jelölések */
         .scale-mark {
             position: absolute;
-            left: -8px;
-            width: calc(100% + 16px);
+            left: -10px;
+            width: calc(100% + 20px);
             height: 2px;
             background: rgba(0,0,0,0.4);
             pointer-events: none;
@@ -164,65 +147,58 @@
         }
         .scale-label {
             position: absolute;
-            left: 55px; 
-            font-size: 13px;
-            font-weight: 800;
+            left: 54px;
+            font-size: 14px;
+            font-weight: 900;
             color: #1e293b;
-            transform: translateY(50%); 
-            line-height: 1;
+            transform: translateY(-50%);
             white-space: nowrap;
             z-index: 3;
         }
 
-        /* HŐMÉRSÉKLET BEÁLLÍTÁSA CSÚSZKA - 260px (Visszaállítva) */
+        /* HŐMÉRSÉKLET BEÁLLÍTÁSA CSÚSZKA - 250px HOSSZÚ */
         .slider-v-wrapper {
-            height: 260px; /* Visszaállítva 260px-re */
-            width: 60px;
+            height: 250px; 
+            width: 70px;
             display: flex;
             align-items: center;
             justify-content: center;
-            flex-shrink: 0; 
         }
         
         input[type=range].vertical-range {
             -webkit-appearance: none;
-            width: 260px; /* Visszaállítva 260px-re */
-            height: 16px;
+            width: 250px; 
+            height: 18px;
             background: #e2e8f0;
             border-radius: 999px;
             transform: rotate(-90deg);
             cursor: pointer;
             margin: 0;
             box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
-            flex-shrink: 0;
         }
         input[type=range].vertical-range::-webkit-slider-thumb {
             -webkit-appearance: none;
-            height: 36px;
-            width: 36px;
+            height: 40px;
+            width: 40px;
             border-radius: 50%;
             background: #2563eb;
-            border: 3px solid white;
-            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
+            border: 4px solid white;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
         }
 
-        /* GOMB OSZLOP */
         .vertical-btns {
             display: flex;
             flex-direction: column;
-            gap: 8px;
-            width: 100px;
-            height: 260px; /* Szinkronban a műszerekkel */
-            flex-shrink: 0;
-            justify-content: center; /* Gombok középre rendezése */
+            gap: 12px;
+            width: 130px;
         }
 
         .btn-modern {
             flex: 1;
-            padding: 8px 4px;
-            border-radius: 16px;
+            padding: 16px 8px;
+            border-radius: 20px;
             font-weight: 800;
-            font-size: 0.8rem;
+            font-size: 0.9rem;
             text-transform: uppercase;
             transition: all 0.2s;
             border: 2px solid #e2e8f0;
@@ -231,66 +207,47 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 4px;
+            gap: 6px;
         }
-        .btn-modern:hover { background: #f1f5f9; border-color: #2563eb; color: #2563eb; transform: translateX(-2px); }
+        .btn-modern:hover { background: #f1f5f9; border-color: #2563eb; color: #2563eb; transform: translateX(-4px); }
         .btn-modern:active { transform: scale(0.95); }
-        
-        .btn-modern .icon-large { font-size: 1.8rem; }
 
-        /* Magyarázat Modal */
-        .info-modal {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(4px);
-            z-index: 100;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        .info-modal.active { display: flex; animation: fadeIn 0.2s ease-out; }
-        
-        .modal-content {
-            background: white;
-            padding: 30px;
-            border-radius: 24px;
-            max-width: 500px;
-            width: 100%;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
-            position: relative;
-        }
-
-        .btn-info-toggle {
-            position: absolute;
-            top: 16px;
-            right: 16px;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: #dbeafe;
-            color: #2563eb;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .btn-reset-top {
+            background-color: #0f172a;
+            color: white;
             border: none;
-            cursor: pointer;
+            height: 90px; 
+            border-radius: 24px;
+            font-weight: 900;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
             transition: all 0.2s;
-            z-index: 10;
+            box-shadow: 0 4px 15px rgba(15, 23, 42, 0.2);
+            margin-bottom: 8px;
         }
-        .btn-info-toggle:hover { background: #2563eb; color: white; transform: scale(1.1); }
+        .btn-reset-top:hover { background-color: #ef4444; transform: translateY(-2px); }
+
+        .info-card {
+            background: #eff6ff;
+            border-radius: 24px;
+            padding: 24px;
+            border: 1px solid #dbeafe;
+        }
 
         .state-tag {
-            padding: 8px 20px;
+            padding: 10px 24px;
             border-radius: 999px;
             font-weight: 900;
-            font-size: 1rem;
+            font-size: 1.1rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
-
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body class="flex flex-col h-screen">
@@ -311,13 +268,13 @@
         <div class="canvas-area">
             <canvas id="simCanvas"></canvas>
             
-            <!-- HŐMÉRSÉKLET KIJELZŐ -->
-            <div id="tempDisplay" class="absolute top-6 right-6 bg-white/95 backdrop-blur-xl px-6 py-3 rounded-2xl font-mono font-black text-slate-900 text-3xl border-2 border-blue-600 shadow-2xl transition-all duration-300">
+            <!-- HŐMÉRSÉKLET KIJELZŐ - KISEBB MÉRET -->
+            <div id="tempDisplay" class="absolute top-8 right-8 bg-white/95 backdrop-blur-xl px-8 py-4 rounded-2xl font-mono font-black text-slate-900 text-4xl border-2 border-blue-600 shadow-2xl transition-all duration-300">
                 -20.0°C
             </div>
 
             <!-- Állapot jelző -->
-            <div class="absolute top-6 left-6">
+            <div class="absolute top-8 left-8">
                 <span id="stateLabel" class="state-tag bg-blue-600 text-white shadow-xl shadow-blue-200">Szilárd (Jég)</span>
             </div>
         </div>
@@ -325,88 +282,81 @@
         <!-- Vezérlőpanel -->
         <div class="sidebar">
             
-            <div class="flex items-stretch gap-4 h-full">
+            <div class="flex items-stretch gap-6">
                 <!-- Műszerek kártya -->
                 <div class="measurement-card">
-                    <button onclick="toggleInfo()" class="btn-info-toggle" title="Magyarázat megjelenítése">
-                        <i data-lucide="help-circle" class="w-5 h-5"></i>
-                    </button>
-                    
-                    <div class="flex items-center justify-center gap-6 mt-1 flex-1 flex-wrap md:flex-nowrap">
+                    <span class="control-label">Műszerek és vezérlés</span>
+                    <div class="flex items-center justify-between gap-8 mt-4">
                         
-                        <!-- Hőmérő skálával -->
-                        <div class="flex flex-col items-center gap-2 h-full justify-center">
+                        <!-- Hőmérő skálával (250px) -->
+                        <div class="flex flex-col items-center gap-6">
+                            <span class="text-[10px] font-black text-slate-400 uppercase">Hőmérséklet</span>
                             <div class="meter-container">
                                 <div class="meter-fill-wrapper">
                                     <div id="thermometerFill" class="meter-fill thermometer-fill" style="height: 20%;"></div>
                                 </div>
                                 <!-- Skála jelölések -->
                                 <div class="scale-mark" style="bottom: 95%;"></div><span class="scale-label" style="bottom: 95%;">100 °C</span>
-                                <div class="scale-mark" style="bottom: 35%; border-top: 3px solid #3b82f6;"></div><span class="scale-label" style="bottom: 35%; color: #3b82f6; font-size: 14px;">4 °C</span>
-                                <div class="scale-mark" style="bottom: 20%; border-top: 2px solid #2563eb;"></div><span class="scale-label" style="bottom: 20%; color: #2563eb; font-size: 14px;">0 °C</span>
+                                <div class="scale-mark" style="bottom: 35%; border-top: 3px solid #3b82f6;"></div><span class="scale-label" style="bottom: 35%; color: #3b82f6; font-size: 16px;">4 °C</span>
+                                <div class="scale-mark" style="bottom: 20%; border-top: 2px solid #2563eb;"></div><span class="scale-label" style="bottom: 20%; color: #2563eb; font-size: 16px;">0 °C</span>
                                 <div class="scale-mark" style="bottom: 2%; opacity: 0.3;"></div><span class="scale-label" style="bottom: 2%; opacity: 0.5;">-20 °C</span>
                             </div>
-                            <span class="text-[9px] font-black text-slate-400 uppercase mt-1">Hőmérő</span>
                         </div>
 
-                        <!-- Hőmérséklet beállítása Csúszka -->
-                        <div class="flex flex-col items-center gap-2 h-full justify-center">
+                        <!-- Hőmérséklet beállítása Csúszka (250px) -->
+                        <div class="flex flex-col items-center gap-4">
+                            <span class="text-[11px] font-black text-blue-700 uppercase text-center w-36 leading-tight">Hőmérséklet beállítása</span>
                             <div class="slider-v-wrapper">
                                 <input type="range" id="tempSlider" min="0" max="100" step="0.1" value="10" class="vertical-range">
                             </div>
-                            <span class="text-[10px] font-black text-blue-700 uppercase text-center leading-tight mt-1">Beállítás</span>
                         </div>
 
-                        <!-- Térfogat -->
-                        <div class="flex flex-col items-center gap-2 h-full justify-center">
+                        <!-- Térfogat (250px) -->
+                        <div class="flex flex-col items-center gap-6">
+                            <span class="text-[10px] font-black text-green-600 uppercase">Térfogat</span>
                             <div class="meter-container border-green-400 bg-green-50">
                                 <div class="meter-fill-wrapper">
                                     <div id="volumeFill" class="meter-fill volume-fill" style="height: 45%;"></div>
                                 </div>
                                 <div class="absolute w-full border-t-2 border-dashed border-green-800 opacity-20" style="bottom: 30%;"></div>
                             </div>
-                            <span class="text-[9px] font-black text-green-600 uppercase mt-1">Térfogat</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Gyorsgombok Függőlegesen -->
                 <div class="vertical-btns">
-                    <!-- RESET GOMB TÖRÖLVE -->
+                    <!-- ALAPHELYZET GOMB FELÜL -->
+                    <button onclick="resetSimulation()" class="btn-reset-top">
+                        <i data-lucide="rotate-ccw" class="w-7 h-7"></i>
+                        <span>Alaphelyzet</span>
+                    </button>
                     
                     <button onclick="setTemp(-10)" class="btn-modern shadow-blue-50">
-                        <span class="icon-large">🧊</span>
+                        <span class="text-4xl">🧊</span>
                         <span>JÉG</span>
                     </button>
                     <button onclick="setTemp(4)" class="btn-modern shadow-blue-50">
-                        <span class="icon-large">💧</span>
+                        <span class="text-4xl">💧</span>
                         <span>VÍZ</span>
                     </button>
                     <button onclick="setTemp(100)" class="btn-modern shadow-red-50">
-                        <span class="icon-large">☁️</span>
+                        <span class="text-4xl">☁️</span>
                         <span>GŐZ</span>
                     </button>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- MAGYARÁZAT MODAL POPUP -->
-    <div id="infoModal" class="info-modal" onclick="if(event.target === this) toggleInfo()">
-        <div class="modal-content relative">
-            <button onclick="toggleInfo()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-800">
-                <i data-lucide="x" class="w-6 h-6"></i>
-            </button>
-            <h3 class="text-lg font-black text-blue-900 flex items-center gap-2 uppercase tracking-widest mb-4">
-                <i data-lucide="info" class="w-6 h-6 text-blue-600"></i> Magyarázat
-            </h3>
-            <p id="descriptionText" class="text-base leading-relaxed text-slate-700 font-medium mb-6"></p>
-            <div class="p-4 bg-blue-50 rounded-xl border border-blue-100 flex items-start gap-3">
-                <i data-lucide="gauge" class="w-5 h-5 text-green-600 mt-1 shrink-0"></i>
-                <p id="volumeText" class="text-sm font-bold text-green-800"></p>
-            </div>
-            <div class="mt-6 text-center">
-                 <button onclick="toggleInfo()" class="bg-blue-600 text-white px-6 py-2 rounded-full font-bold hover:bg-blue-700 transition">Értem</button>
+            <!-- Magyarázat kártya -->
+            <div class="info-card space-y-4">
+                <h3 class="text-sm font-black text-blue-900 flex items-center gap-2 uppercase tracking-widest">
+                    <i data-lucide="info" class="w-5 h-5"></i> Magyarázat
+                </h3>
+                <p id="descriptionText" class="text-sm leading-relaxed text-slate-700 font-medium"></p>
+                <div class="p-4 bg-white/70 rounded-2xl border border-blue-100 flex items-start gap-3 shadow-sm">
+                    <i data-lucide="gauge" class="w-5 h-5 text-green-600 mt-1 shrink-0"></i>
+                    <p id="volumeText" class="text-sm font-bold text-green-800"></p>
+                </div>
             </div>
         </div>
     </div>
@@ -430,16 +380,11 @@
         const volumeText = document.getElementById('volumeText');
         const thermometerFill = document.getElementById('thermometerFill');
         const volumeFill = document.getElementById('volumeFill');
-        const infoModal = document.getElementById('infoModal');
 
         let width, height;
         let currentTemp = -10; 
         const particles = [];
         const particleCount = 450;
-
-        function toggleInfo() {
-            infoModal.classList.toggle('active');
-        }
 
         class Particle {
             constructor() {
@@ -448,11 +393,11 @@
                 this.y = Math.random() * 400;
                 this.vx = 0; this.vy = 0;
                 this.gridX = 0; this.gridY = 0;
-                this.evaporated = false; 
+                this.evaporated = false; // Új: elszabadult-e már gázként?
             }
 
             update(temp, state, volumeFactor) {
-                if (temp < 100) this.evaporated = false; 
+                if (temp < 100) this.evaporated = false; // Visszafolyósodás reset
 
                 if (state === 'solid') {
                     let vib = 0.15 + (temp + 20) / 80; 
@@ -462,6 +407,7 @@
                     this.y += (Math.random() - 0.5) * vib;
                 } 
                 else if (state === 'liquid' || (state === 'gas' && !this.evaporated)) {
+                    // Folyadék fázis (vagy még nem elpárolgott részecske gáz állapotban)
                     this.vy += 0.3; 
                     let thermal = (temp + 20) / 120; 
                     this.vx += (Math.random() - 0.5) * thermal;
@@ -475,15 +421,18 @@
                     let surface = height - (volumeFactor * 100) - (Math.random()*8);
                     if (this.y < surface && temp < 100) { this.vy += 0.5; }
 
+                    // FOKOZATOS ÁTALAKULÁS: 100 fok felett véletlenszerű kilépés
                     if (temp >= 100 && !this.evaporated) {
+                        // Kis esély frame-enként a kilépésre (lassabb folyamat)
                         if (Math.random() < 0.004 + (temp - 100) * 0.001) {
                             this.evaporated = true;
-                            this.vy = -1.5 - Math.random() * 2; 
+                            this.vy = -1.5 - Math.random() * 2; // Lassabb kilépési sebesség
                         }
                     }
                     this.vx *= 0.93; this.vy *= 0.93;
                 } 
                 else if (state === 'gas' && this.evaporated) {
+                    // Gáz fázis (már elszabadult részecske)
                     let spd = 3.0 + (temp - 100) / 8;
                     if (this.y > height * 0.75) this.vy -= 0.3;
                     let curSpd = Math.sqrt(this.vx*this.vx + this.vy*this.vy);
@@ -614,7 +563,7 @@
         window.onresize = resize;
     </script>
 </body>
-<button onclick="location.href='index.html'" style="
+<button onclick="const last = sessionStorage.getItem('lastIndexPage'); window.location.href = last ? last : 'index.html';" style="
     position: fixed; 
     top: 10px; 
     right: 140px; 

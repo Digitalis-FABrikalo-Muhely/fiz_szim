@@ -17,11 +17,11 @@
             touch-action: none;
         }
 
-        /* --- FEJLÉC STÍLUSOK --- */
+        /* --- FEJLÉC ÉS LÁBLEC STÍLUSOK (Az erő alapjai alapján) --- */
         .header {
             background-color: #2563eb;
             color: white;
-            padding: 12px 24px;
+            padding: 16px 24px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -29,14 +29,14 @@
             z-index: 50;
         }
 
-        .header h1 { margin: 0; font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
-        .header h1 span { font-weight: 900; opacity: 0.8; font-size: 0.8rem; }
+        .header h1 { margin: 0; font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+        .header h1 span { font-weight: 900; opacity: 0.8; font-size: 0.9rem; }
         
-        .badge { background-color: #1d4ed8; padding: 4px 12px; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; }
+        .badge { background-color: #1d4ed8; padding: 6px 16px; border-radius: 9999px; font-size: 0.8rem; font-weight: 700; }
 
         .footer {
             background-color: #0f172a;
-            padding: 12px 24px;
+            padding: 24px;
             color: white;
             font-size: 10px;
             display: flex;
@@ -49,7 +49,8 @@
 
         canvas {
             border: 2px solid #e2e8f0;
-            border-radius: 20px;
+            border-radius: 24px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
             background: #f1f5f9;
             cursor: grab;
         }
@@ -57,73 +58,38 @@
             cursor: grabbing;
         }
         
-        /* FÜGGŐLEGES VEZÉRLŐ DOKK A BAL OLDALON */
-        .control-dock {
-            pointer-events: auto;
-            background-color: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(226, 232, 240, 0.8);
-            padding: 12px;
-            border-radius: 24px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        #ui-overlay {
+            pointer-events: none;
         }
-
+        
         .interactive-btn {
+            pointer-events: auto;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            font-size: 10px;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            width: 100%;
         }
 
         .interactive-btn:active {
             transform: scale(0.95);
         }
 
+        .hidden {
+            display: none;
+        }
+
         .instruction-box {
             background-color: white;
             border-bottom: 1px solid #e2e8f0;
-            padding: 8px 24px;
-        }
-
-        #info-box {
-            position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 60;
-        }
-
-        @media (max-width: 640px) {
-            .control-dock {
-                padding: 8px;
-                border-radius: 16px;
-                left: 12px;
-            }
-            .interactive-btn span { display: none; } /* Mobilon csak ikonok, ha túl szűk */
-            .interactive-btn { padding: 10px; width: auto; }
+            padding: 12px 24px;
         }
     </style>
 </head>
 <body class="h-screen flex flex-col">
 
-    <!-- FEJLÉC -->
+    <!-- FEJLÉC (Az erő alapjai stílusában) -->
     <div class="header">
-        <div class="flex items-center gap-4">
-            <button onclick="location.href='index.html'" class="bg-white/10 hover:bg-white/20 p-2 rounded-lg transition-colors">
-                <i data-lucide="home" class="w-5 h-5"></i>
-            </button>
+        <div class="header-left">
             <h1><span>FIZIKA</span> ⚡ Elektrosztatikus erő</h1>
         </div>
-        <div class="header-center font-black text-lg tracking-tighter opacity-80 hidden md:block">DigiFAB</div>
+        <div class="header-center font-black text-xl tracking-tighter opacity-80 hidden md:block">DigiFAB</div>
         <div class="header-right">
             <span class="badge">9. osztály</span>
         </div>
@@ -131,57 +97,49 @@
 
     <!-- UTASÍTÁSOK -->
     <div class="instruction-box">
-        <div class="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-2">
-            <p class="text-slate-600 text-[13px] font-medium leading-tight">
-                <span class="font-black text-blue-600 uppercase text-[9px] tracking-widest block mb-0.5">Feladat</span>
-                Dörzsöld a lufit a pulóverhez, majd engedd el vagy vidd a falhoz!
+        <div class="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <p class="text-slate-600 text-sm font-medium">
+                <span class="font-black text-blue-600 uppercase text-[10px] tracking-widest block mb-1">Feladat</span>
+                Fogd meg a lufit, dörzsöld a pulóverhez, majd <span class="text-blue-600 font-bold">engedd el</span> vagy <span class="text-blue-600 font-bold">vidd a falhoz</span>!
             </p>
-            <div class="flex gap-4 text-[9px] font-black uppercase tracking-wider">
-                <div class="flex items-center gap-2"><span class="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center text-white text-[10px]">+</span> Proton</div>
-                <div class="flex items-center gap-2"><span class="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-white text-[10px]">-</span> Elektron</div>
+            <div class="flex gap-4 text-[10px] font-black uppercase tracking-wider">
+                <!-- Módosítva rounded-full-ra a kör alakhoz -->
+                <div class="flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-red-500 flex items-center justify-center text-white text-xs">+</span> Proton</div>
+                <div class="flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs">-</span> Elektron</div>
             </div>
         </div>
     </div>
 
     <!-- FŐ SZIMULÁCIÓS TERÜLET -->
-    <div class="flex-grow relative w-full h-full flex flex-col justify-center items-center p-4 overflow-hidden">
+    <div class="flex-grow relative w-full h-full flex justify-center items-center p-4 md:p-8 overflow-hidden">
         <canvas id="simCanvas"></canvas>
         
-        <!-- MAGYARÁZAT PANEL (Lent középen) -->
-        <div id="info-box" class="hidden bg-white/95 p-5 rounded-2xl shadow-2xl backdrop-blur-md w-80 border border-slate-100 animate-in fade-in slide-in-from-bottom-4 duration-200">
-            <h3 class="font-black text-blue-900 text-[10px] uppercase tracking-[0.2em] mb-2 border-b border-slate-100 pb-1">Mi történik?</h3>
-            <p id="status-text" class="text-[13px] text-slate-700 leading-relaxed font-medium">A lufi és a pulóver is semleges. Azonos számú pozitív és negatív töltésük van.</p>
-        </div>
-
-        <!-- BAL OLDALI VEZÉRLŐ DOKK -->
-        <div class="absolute left-6 top-1/2 -translate-y-1/2 z-50">
-            <div class="control-dock">
-                <button id="toggle-charges-btn" onclick="toggleCharges()" class="interactive-btn bg-white border border-slate-200 hover:border-blue-400 text-slate-700 py-3 px-4 rounded-xl shadow-sm" title="Töltések megjelenítése">
-                    <i id="charge-icon" data-lucide="eye-off" class="w-5 h-5"></i>
-                    <span class="hidden sm:inline">Töltések</span>
+        <div id="ui-overlay" class="absolute top-8 right-8 flex flex-col gap-4 items-end">
+            <div class="flex gap-3">
+                <button onclick="resetSimulation()" class="interactive-btn flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white py-2.5 px-5 rounded-xl shadow-lg text-xs font-black uppercase tracking-widest">
+                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Alaphelyzet
                 </button>
-                
-                <button onclick="resetSimulation()" class="interactive-btn bg-slate-800 hover:bg-slate-900 text-white py-3 px-4 rounded-xl shadow-sm" title="Újrakezdés">
-                    <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
-                    <span class="hidden sm:inline">Reset</span>
+                <button onclick="toggleInfo()" class="interactive-btn flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-2.5 px-5 rounded-xl shadow-lg text-xs font-black uppercase tracking-widest">
+                    <i data-lucide="info" class="w-4 h-4"></i> Magyarázat
                 </button>
-                
-                <button onclick="toggleInfo()" class="interactive-btn bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-xl shadow-sm" title="Magyarázat">
-                    <i data-lucide="info" class="w-5 h-5"></i>
-                    <span class="hidden sm:inline">Infó</span>
-                </button>
+            </div>
+            
+            <div id="info-box" class="hidden bg-white/95 p-6 rounded-2xl shadow-2xl backdrop-blur-md w-80 border border-slate-100 animate-in fade-in zoom-in duration-200">
+                <h3 class="font-black text-blue-900 text-[10px] uppercase tracking-[0.2em] mb-3 border-b border-slate-100 pb-2">Mi történik?</h3>
+                <p id="status-text" class="text-sm text-slate-700 leading-relaxed font-medium">A lufi és a pulóver is semleges. Azonos számú pozitív és negatív töltésük van.</p>
             </div>
         </div>
     </div>
 
-    <!-- LÁBLEC -->
+    <!-- LÁBLEC (Az erő alapjai stílusában) -->
     <div class="footer">
         <span>Digitális FABrikáló Műhely</span>
-        <span class="text-blue-400 font-black">.:henz:.</span>
+        <span class="text-blue-500 font-black">.:henz:.</span>
         <span>Henzel György</span>
     </div>
 
     <script>
+        // Lucide ikonok inicializálása
         lucide.createIcons();
 
         const canvas = document.getElementById('simCanvas');
@@ -194,7 +152,6 @@
         let scaleFactor = 1;
         let isDragging = false;
         let dragOffset = { x: 0, y: 0 };
-        let showCharges = false;
 
         // Fizikai objektumok
         let balloon = {
@@ -202,6 +159,7 @@
             prevX: 0, prevY: 0, 
             radius: 60, 
             charges: [], 
+            color: '#fbbf24', 
             vx: 0, vy: 0
         };
 
@@ -221,21 +179,6 @@
 
         function toggleInfo() {
             infoBox.classList.toggle('hidden');
-        }
-
-        function toggleCharges() {
-            showCharges = !showCharges;
-            const btn = document.getElementById('toggle-charges-btn');
-            const icon = document.getElementById('charge-icon');
-            
-            if (showCharges) {
-                btn.classList.add('bg-blue-50', 'border-blue-500', 'text-blue-700');
-                icon.setAttribute('data-lucide', 'eye');
-            } else {
-                btn.classList.remove('bg-blue-50', 'border-blue-500', 'text-blue-700');
-                icon.setAttribute('data-lucide', 'eye-off');
-            }
-            lucide.createIcons();
         }
 
         function init() {
@@ -269,7 +212,7 @@
             wall.h = height;
 
             if (width > 600) {
-                sweater.x = width * 0.3; // Kicsit beljebb toltam, hogy ne zavarják a gombok
+                sweater.x = width * 0.3;
             } else {
                 sweater.x = (width - wall.w) * 0.35;
             }
@@ -277,7 +220,7 @@
 
             if (!isDragging) {
                  if (width > 600) {
-                    balloon.x = width * 0.65;
+                    balloon.x = width * 0.6;
                 } else {
                     balloon.x = (width - wall.w) * 0.8;
                 }
@@ -396,18 +339,11 @@
 
             if (!isDragging) {
                 let fx = 0, fy = 0;
+                const sweaterNet = getNetCharge(sweater);
                 const distS = Math.hypot(balloon.x - sweater.x, balloon.y - sweater.y);
                 const distW = (wall.x) - (balloon.x + balloon.radius);
+                const isStuck = (distW <= 4) && (balloonNetCharge <= -1);
                 const isTouchingSweater = checkCollision(balloon, sweater);
-                const sweaterNet = getNetCharge(sweater);
-
-                const isStuckWall = (distW <= 4) && (balloonNetCharge <= -1);
-                const isStuckSweater = isTouchingSweater && (balloonNetCharge < 0 && sweaterNet > 0);
-
-                if (!isStuckWall && !isStuckSweater) {
-                    fy += 0.08 * scaleFactor;
-                    fx += Math.sin(Date.now() * 0.003) * 0.12 * scaleFactor;
-                }
 
                 if (balloonNetCharge < 0 && sweaterNet > 0) {
                     if (isTouchingSweater) {
@@ -420,6 +356,7 @@
                         const angle = Math.atan2(sweater.y - balloon.y, sweater.x - balloon.x);
                         fx += Math.cos(angle) * force;
                         fy += Math.sin(angle) * force;
+                        if (distW > 100 * scaleFactor) updateStatus("A lufi (-) és a pulóver (+) ellentétes töltésűek, ezért vonzzák egymást.");
                     }
                 }
 
@@ -429,14 +366,10 @@
                 }
 
                 balloon.vx += fx; balloon.vy += fy;
-                if (isStuckWall || isStuckSweater) { 
-                    balloon.vy = 0; 
-                    if (balloon.vx > 0) balloon.vx *= 0.5; 
-                } else { 
-                    balloon.vy *= 0.96; 
-                    balloon.vx *= 0.96;
-                }
+                if (isStuck) { balloon.vy = 0; if (balloon.vx > 0) balloon.vx *= 0.5; } 
+                else { balloon.vy *= 0.85; }
                 
+                balloon.vx *= 0.85; 
                 balloon.x += balloon.vx; balloon.y += balloon.vy;
 
                 if (balloon.x + balloon.radius >= wall.x) {
@@ -450,11 +383,7 @@
 
             if (balloon.x < balloon.radius) { balloon.x = balloon.radius; balloon.vx = Math.abs(balloon.vx) * 0.5; }
             if (balloon.y < balloon.radius) { balloon.y = balloon.radius; balloon.vy = Math.abs(balloon.vy) * 0.5; }
-            if (balloon.y > height - balloon.radius) { 
-                balloon.y = height - balloon.radius; 
-                balloon.vy = -Math.abs(balloon.vy) * 0.2; 
-                balloon.vx *= 0.8; 
-            }
+            if (balloon.y > height - balloon.radius) { balloon.y = height - balloon.radius; balloon.vy = -Math.abs(balloon.vy) * 0.5; }
         }
 
         function checkCollision(circle, rect) {
@@ -491,7 +420,7 @@
             ctx.fillText("FAL", 0, 0);
             ctx.restore();
 
-            if (showCharges) drawCharges(wall, wall.x, wall.y, false);
+            drawCharges(wall, wall.x, wall.y, false);
             drawSweater3D(sweater);
 
             let grad = ctx.createRadialGradient(balloon.x - balloon.radius * 0.3, balloon.y - balloon.radius * 0.3, balloon.radius * 0.1, balloon.x, balloon.y, balloon.radius);
@@ -518,7 +447,7 @@
 
             const net = getNetCharge(balloon);
             if (net < 0) { ctx.shadowBlur = 20; ctx.shadowColor = "#facc15"; }
-            if (showCharges) drawCharges(balloon, balloon.x, balloon.y, true);
+            drawCharges(balloon, balloon.x, balloon.y, true);
             ctx.shadowBlur = 0;
         }
 
@@ -547,11 +476,11 @@
             ctx.fill();
 
             ctx.fillStyle = 'rgba(255,255,255,0.9)';
-            ctx.font = `black ${24 * scaleFactor}px Inter`;
+            ctx.font = `black ${26 * scaleFactor}px Inter`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText('DigiFAB', x, y);
-            if (showCharges) drawCharges(obj, x, y, true);
+            drawCharges(obj, x, y, true);
         }
 
         function drawCharges(body, originX, originY, isCenteredOrigin) {
@@ -613,7 +542,7 @@
         window.onload = init;
     </script>
 </body>
-<button onclick="location.href='index.html'" style="
+<button onclick="const last = sessionStorage.getItem('lastIndexPage'); window.location.href = last ? last : 'index.html';" style="
     position: fixed; 
     top: 10px; 
     right: 140px; 

@@ -551,7 +551,7 @@
         Object.values(inclineInputs).forEach(input => input.addEventListener('input', updateIncline));
     </script>
 </body>
-<button onclick="location.href='index.html'" style="
+<button onclick="const last = sessionStorage.getItem('lastIndexPage'); window.location.href = last ? last : 'index.html';" style="
     position: fixed; 
     top: 10px; 
     right: 140px; 

@@ -301,7 +301,7 @@
                     <hr class="border-slate-100 my-1">
 
                     <label class="checkbox-item" id="labelShowImage">
-                        <input type="checkbox" id="checkShowImage" checked>
+                        <input type="checkbox" id="checkShowImage">
                         <span><span class="legend-dot bg-slate-400"></span> Kép megjelenítése</span>
                     </label>
                 </div>
@@ -450,7 +450,7 @@
         checkCenter.checked = false;
         checkFocal.checked = false;
         checkSun.checked = false; 
-        checkShowImage.checked = true; // Módosítva: alapállapotban igaz
+        checkShowImage.checked = false; 
         updateControlState();
     }
 
@@ -724,7 +724,7 @@
     init();
 </script>
 </body>
-<button onclick="location.href='index.html'" style="
+<button onclick="const last = sessionStorage.getItem('lastIndexPage'); window.location.href = last ? last : 'index.html';" style="
     position: fixed; 
     top: 10px; 
     right: 140px; 

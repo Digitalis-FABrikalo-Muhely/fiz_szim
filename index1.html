@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DigiFAB - Fizika Szimulációk & Módszertan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+
+        .simulation-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid #e2e8f0;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .simulation-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+            border-color: #2563eb;
+        }
+
+        .class-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            background-color: #eff6ff;
+            color: #2563eb;
+            margin-bottom: 1rem;
+        }
+
+        .info-btn {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            width: 32px;
+            height: 32px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 20;
+            transition: all 0.2s;
+        }
+
+        .info-btn:hover {
+            background: #2563eb;
+            color: white;
+            border-color: #2563eb;
+            transform: scale(1.1);
+        }
+
+        .emoji-float {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            font-size: 3rem;
+            opacity: 0.1;
+            transform: rotate(12deg);
+            pointer-events: none;
+        }
+
+        /* Modális stílusok */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            width: 100%;
+            max-width: 600px;
+            border-radius: 2rem;
+            padding: 2.5rem;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- FEJLÉC -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-600 p-2 rounded-xl shadow-lg">
+                    <i data-lucide="atom" class="text-white w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-black tracking-tighter text-slate-900 leading-none">DigiFAB</h1>
+                    <span class="text-[10px] font-bold text-blue-600 uppercase tracking-[0.2em]">Fizika Labor</span>
+                </div>
+            </div>
+            <div class="hidden md:flex items-center gap-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                <span class="flex items-center gap-2"><i data-lucide="layout-grid" class="w-4 h-4 text-blue-500"></i> Standardizált</span>
+                <span class="flex items-center gap-2"><i data-lucide="book-open" class="w-4 h-4 text-emerald-500"></i> Tananyag-alapú</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- HERO SZEKCIÓ -->
+    <section class="bg-white py-12 md:py-16 border-b border-slate-100">
+        <div class="container mx-auto px-6">
+            <div class="max-w-3xl">
+                <h2 class="text-4xl md:text-5xl font-black text-slate-900 mb-4 tracking-tight">
+                    Interaktív <span class="text-blue-600">kísérletek</span> gyűjteménye 🧪
+                </h2>
+                <p class="text-slate-500 text-lg leading-relaxed">
+                    A szimulációk a szlovákiai pedagógiai program (iŠVP) standardjaihoz illeszkednek. Kattints a 📜 ikonra a módszertani háttérért!
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- FŐ TARTALOM -->
+    <main class="container mx-auto px-6 py-12 flex-grow">
+        <div id="sim-grid">
+            <!-- JavaScript tölti be a kártyákat az osztályok szerint -->
+        </div>
+    </main>
+
+    <!-- MODÁLIS ABLAK -->
+    <div id="infoModal" class="modal" onclick="closeModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <span id="modalGrade" class="class-badge"></span>
+                    <h3 id="modalTitle" class="text-2xl font-black text-slate-900"></h3>
+                </div>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-6">
+                <div class="bg-blue-50 p-5 rounded-2xl border border-blue-100">
+                    <h4 class="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-2">Tartalmi standard</h4>
+                    <p id="modalContent" class="text-sm text-blue-900 leading-relaxed font-medium"></p>
+                </div>
+
+                <div>
+                    <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Teljesítmény standard</h4>
+                    <p id="modalPerformance" class="text-sm text-slate-700 leading-relaxed"></p>
+                </div>
+
+                <div class="border-t border-slate-100 pt-5">
+                    <h4 class="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-2">Pedagógiai cél</h4>
+                    <p id="modalGoal" class="text-sm text-slate-600 leading-relaxed italic"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LÁBLEC -->
+    <footer class="bg-slate-900 py-10 text-white">
+        <div class="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div class="text-center md:text-left">
+                <h4 class="text-lg font-black tracking-tighter mb-1">DigiFAB Fizika Labor 🧪</h4>
+                <p class="text-slate-500 text-[10px] uppercase tracking-[0.2em] font-bold">Szlovák pedagógiai programhoz igazítva</p>
+            </div>
+            <div class="flex items-center gap-6 text-xs font-bold text-slate-500">
+                <span>.:henz:.</span>
+                <span>2026 © Minden jog fenntartva</span>
+            </div>
+        </div>
+    </footer>
+<button onclick="openQR()" class="fixed top-1/2 -translate-y-1/2 right-8 z-50 bg-blue-600 text-white w-16 h-16 rounded-full shadow-2xl flex items-center justify-center hover:scale-110 hover:bg-blue-700 transition-all group animate-bounce">
+        <i data-lucide="qr-code" class="w-8 h-8"></i>
+    </button>
+
+    <div id="qrModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div class="bg-white p-8 rounded-[2.5rem] max-w-sm w-full relative">
+            <button onclick="closeQR()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-900">
+                <i data-lucide="x-circle" class="w-8 h-8"></i>
+            </button>
+            <div class="text-center">
+                <h3 class="text-2xl font-black text-slate-900 mb-2">Használd mobilon, tableten📱</h3>
+                <p class="text-slate-500 text-sm mb-6">Olvasd be a QR-kódot az eszközödön való használathoz!</p>
+                <img src="geniali_online_fizika_github.png" alt="QR kód" class="w-full h-auto rounded-2xl shadow-lg mb-6 border-4 border-slate-50">
+                <button onclick="closeQR()" class="w-full py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200">Bezárás</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        const simulations = [
+            // 6. OSZTÁLY
+            {
+                id: 'terfogat_meres',
+                grade: 6,
+                title: 'Térfogatmérés 💧',
+                url: 'szilard_folyekony_test_terfogata.html',
+                emoji: '💧',
+                color: 'blue',
+                icon: 'droplets',
+                desc: 'Szilárd és folyékony testek térfogatának mérése kiszorítással.',
+                standards: {
+                    content: 'Testek térfogata és mérése. A térfogat mértékegységei. Folyadékkiszorítás elve.',
+                    performance: 'A tanuló képes megmérni szabálytalan alakú szilárd testek térfogatát mérőhenger segítségével. Ismeri a milliliter és a köbcentiméter közötti kapcsolatot.',
+                    goal: 'A mérési technika precizitásának fejlesztése és az elmozdulás alapú térfogatmeghatározás szemléltetése.'
+                }
+            },
+            {
+                id: 'descartes_buvar',
+                grade: 6,
+                title: 'Descartes-búvár 🤿',
+                url: 'descartes_búvár.html',
+                emoji: '🤿',
+                color: 'blue',
+                icon: 'waves',
+                desc: 'A nyomás és a felhajtóerő kapcsolata folyadékokban.',
+                standards: {
+                    content: 'A folyadékok tulajdonságai. Hidrosztatikai nyomás és felhajtóerő. Archimedes törvénye.',
+                    performance: 'A tanuló kísérleti úton bizonyítja a felhajtóerő létezését. Meg tudja magyarázni a testek úszását a sűrűségkülönbségek alapján.',
+                    goal: 'A gázok összenyomhatóságának és a folyadékok nyomástovábbító képességének összekapcsolása gyakorlati példán keresztül.'
+                }
+            },
+            {
+                id: 'spirometer',
+                grade: 6,
+                title: 'Házi Spirométer 🫁',
+                url: 'hazi_spirometer.html',
+                emoji: '🫁',
+                color: 'red',
+                icon: 'wind',
+                desc: 'Tüdőkapacitás mérése és a gáznyomás változása.',
+                standards: {
+                    content: 'A gázok tulajdonságai és mérése. Gázok nyomása zárt térben.',
+                    performance: 'A tanuló képes megtervezni és kivitelezni egy egyszerű gáznyomáson alapuló mérési eljárást. Megérti a térfogatkiszorítás elvét.',
+                    goal: 'Interdiszciplináris kapcsolat (biológia-fizika): az emberi tüdő működésének fizikai modellezése.'
+                }
+            },
+            {
+                id: 'hidraulikus_emelo',
+                grade: 6,
+                title: 'Hidraulikus emelő ⚖️',
+                url: 'hidraulikus_emelo.html',
+                emoji: '⚖️',
+                color: 'slate',
+                icon: 'arrow-up-to-line',
+                desc: 'Pascal törvénye és az erőátvitel folyadékokban.',
+                standards: {
+                    content: 'Nyomás folyadékokban. Pascal törvénye. Hidraulikus berendezések.',
+                    performance: 'A tanuló kiszámítja a hidraulikus rendszerekben ébredő erőket. Megérti a nyomás gyengítetlen terjedését.',
+                    goal: 'Technikai gondolkodás fejlesztése: fizikai törvény alkalmazása erőkifejtés megtakarítására.'
+                }
+            },
+            // 7. OSZTÁLY
+            {
+                id: 'viz_halmazallapotai',
+                grade: 7,
+                title: 'Halmazállapotok 🧊',
+                url: 'viz_ halmazallapotai.html',
+                emoji: '🧊',
+                color: 'sky',
+                icon: 'thermometer',
+                desc: 'A víz molekuláris szintű mozgása a hőmérséklet változásakor.',
+                standards: {
+                    content: 'Az anyagok halmazállapotai. Hőmérséklet és hőmozgás. Halmazállapot-változások.',
+                    performance: 'A tanuló leírja a részecskék elrendeződését és mozgását a különböző halmazállapotokban. Megérti a hőmérséklet hatását a részecskemozgásra.',
+                    goal: 'Mikroszkopikus részecskemodell alkotása az anyagszerkezet és a hőmozgás megértéséhez.'
+                }
+            },
+            {
+                id: 'viz_anomaliaja',
+                grade: 7,
+                title: 'A víz anomáliája ❄️',
+                url: 'viz_anomaliaja.html',
+                emoji: '❄️',
+                color: 'cyan',
+                icon: 'cloud-snow',
+                desc: 'A víz sűrűségének különleges változása a tavak befagyásakor.',
+                standards: {
+                    content: 'A sűrűség változása a hőmérséklettel. Termikus jelenségek a természetben.',
+                    performance: 'A tanuló megmagyarázza, miért fagynak be a tavak felülről lefelé. Érti a 4°C-os víz legnagyobb sűrűségének jelentőségét az élővilág számára.',
+                    goal: 'Természeti jelenségek tudományos magyarázata fizikai alapokon, a sűrűség és hőmérséklet kapcsolatának mélyítése.'
+                }
+            },
+            {
+                id: 'paralecsapodas',
+                grade: 7,
+                title: 'Páralecsapódás 🌫️',
+                url: 'paralecsapodas.html',
+                emoji: '🌫️',
+                color: 'indigo',
+                icon: 'cloud-drizzle',
+                desc: 'Gázok lecsapódása (kondenzáció) hideg felületeken.',
+                standards: {
+                    content: 'Hőmérsékleti egyensúly. Lecsapódás mint halmazállapot-változás. Gőzök és gázok.',
+                    performance: 'A tanuló szemlélteti és megmagyarázza a pára lecsapódásának folyamatát. Felismeri a jelenséget a környezetében (ablak, szemüveg).',
+                    goal: 'A mindennapi meteorológiai jelenségek és a konyhai fizika összekapcsolása kísérleti úton.'
+                }
+            },
+            // 8. OSZTÁLY
+            {
+                id: 'ero_alapjai',
+                grade: 8,
+                title: 'Az erő alapjai ⚡',
+                url: 'ero_alapjai.html',
+                emoji: '⚡',
+                color: 'yellow',
+                icon: 'zap',
+                desc: 'Vektoros ábrázolás, Newton törvényei és erőhatások.',
+                standards: {
+                    content: 'Erő mint vektormennyiség. Az erő hatásai. Newton törvényei.',
+                    performance: 'A tanuló képes az erőt vektorként ábrázolni. Különbséget tesz rugalmas és maradandó alakváltozás között.',
+                    goal: 'Az absztrakt fizikai fogalmak vizuális megjelenítése és a Newtoni dinamika alapjainak rögzítése.'
+                }
+            },
+            {
+                id: 'egyszeru_gepek',
+                grade: 8,
+                title: 'Egyszerű gépek 🏗️',
+                url: 'egyszeru_gepek.html',
+                emoji: '🏗️',
+                color: 'orange',
+                icon: 'settings-2',
+                desc: 'Emelők és lejtők mechanikai vizsgálata.',
+                standards: {
+                    content: 'Az erő forgatónyomatéka. Egyszerű gépek: emelő, lejtő. Mechanikai munka.',
+                    performance: 'A tanuló alkalmazza az emelő törvényét egyensúlyi helyzetekben. Felismeri az erő és az út közötti fordított arányosságot.',
+                    goal: 'Problémamegoldó képesség fejlesztése gyakorlati, mérnöki jellegű szimuláción keresztül.'
+                }
+            },
+            {
+                id: 'szemhibak_javitasa',
+                grade: 8,
+                title: 'Szemhibák javítása 👁️',
+                url: 'szemhibak_javitasa.html',
+                emoji: '👁️',
+                color: 'rose',
+                icon: 'glasses',
+                desc: 'A rövidlátás és távollátás korrigálása lencsékkel.',
+                standards: {
+                    content: 'Az emberi szem mint optikai rendszer. Szemhibák és korrekciójuk.',
+                    performance: 'A tanuló kiválasztja a megfelelő lencsetípust (szóró vagy gyűjtő) a szemhibák javításához. Érti a fókuszpont eltolódásának okait.',
+                    goal: 'Az optikai ismeretek alkalmazása az egészségmegőrzésben és a technikai segédeszközök megértésében.'
+                }
+            },
+            {
+                id: 'lencsek',
+                grade: 8,
+                title: 'Lencsék világa 🐌',
+                url: 'kepalkotas_lencsekkel.html',
+                emoji: '🐌',
+                color: 'purple',
+                icon: 'eye',
+                desc: 'Képalkotás gyűjtő- és szórólencsékkel.',
+                standards: {
+                    content: 'Fénytörés lencséken. Gyűjtő- és szórólencsék. Képalkotás jellemzői.',
+                    performance: 'A tanuló megszerkeszti a kép helyét nevezetes fénysugarak segítségével. Jellemzi a kapott képet.',
+                    goal: 'Az optikai jelenségek geometriai szemléltetése és a modern optikai eszközök megértése.'
+                }
+            },
+            {
+                id: 'fenytan',
+                grade: 8,
+                title: 'Fénytan alapok 🔦',
+                url: 'fenytores_es_visszaverodes.html',
+                emoji: '🔦',
+                color: 'indigo',
+                icon: 'sun',
+                desc: 'Fénytörés és visszaverődés különböző közegeknél.',
+                standards: {
+                    content: 'A fény visszaverődése és törése. Törésmutató. Teljes visszaverődés.',
+                    performance: 'A tanuló megméri a beesési és törési szöget. Megállapítja az összefüggést a közeg sűrűsége és a törés iránya között.',
+                    goal: 'Kísérleti megfigyelés és adatgyűjtés fejlesztése interaktív szögmérő használatával.'
+                }
+            },
+            {
+                id: 'halvadasz',
+                grade: 8,
+                title: 'Halvadász játék 🐟',
+                url: 'fenytores_halvadasz.html',
+                emoji: '🐟',
+                color: 'emerald',
+                icon: 'target',
+                desc: 'Alkalmazott fénytörés: célzás a víz alatt.',
+                standards: {
+                    content: 'A fénytörés gyakorlati következményei. Látszólagos mélység.',
+                    performance: 'A tanuló megmagyarázza, miért látunk a testeket máshol a víz alatt. Képes korrigálni a célzást a törés ismeretében.',
+                    goal: 'Játékos tanulás: a fizikai elmélet gyakorlati alkalmazása stresszmentes környezetben.'
+                }
+            },
+            // 9. OSZTÁLY
+            {
+                id: 'elektrosztatika',
+                grade: 9,
+                title: 'Elektrosztatika 🌩️',
+                url: 'elektrosztatikus_feltoltodes.html',
+                emoji: '🌩️',
+                color: 'blue',
+                icon: 'sparkles',
+                desc: 'Töltések mozgása és dörzselektromosság.',
+                standards: {
+                    content: 'Elektromos töltés. Elektromos mező. Testek elektromos feltöltése.',
+                    performance: 'A tanuló leírja az atom szerkezetét a töltések szempontjából. Megmagyarázza a töltések közötti kölcsönhatást.',
+                    goal: 'A mikroszkopikus részecskék láthatóvá tétele és a makroszkopikus jelenségek összekapcsolása.'
+                }
+            },
+            {
+                id: 'fold_magnes',
+                grade: 9,
+                title: 'Föld mint mágnes 🌍',
+                url: 'fold_mint_magnes.html',
+                emoji: '🌍',
+                color: 'green',
+                icon: 'compass',
+                desc: 'A Föld mágneses mezeje és az iránytű használata.',
+                standards: {
+                    content: 'Mágneses kölcsönhatás. A Föld mágneses mezeje. Iránytű.',
+                    performance: 'A tanuló leírja a mágneses pólusokat és a köztük ható erőket. Megérti a mágneses és földrajzi pólusok közötti különbséget.',
+                    goal: 'A tájékozódás fizikai hátterének megismerése és a mágneses mező szemléltetése.'
+                }
+            }
+        ];
+
+        function renderGrid() {
+            const grid = document.getElementById('sim-grid');
+            const sections = [6, 7, 8, 9];
+            
+            grid.innerHTML = sections.map(grade => `
+                <section class="mb-12">
+                    <div class="class-badge">${grade}. osztály</div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        ${simulations.filter(s => s.grade === grade).map(sim => `
+                            <div class="simulation-card relative overflow-hidden bg-white p-6 rounded-3xl group" onclick="navigateTo('${sim.url}')">
+                                <button class="info-btn shadow-sm" onclick="event.stopPropagation(); openModal('${sim.id}')" title="Módszertani adatok">
+                                    📜
+                                </button>
+                                <div class="block">
+                                    <span class="emoji-float">${sim.emoji}</span>
+                                    <div class="bg-${sim.color}-50 w-12 h-12 rounded-xl flex items-center justify-center mb-5 group-hover:bg-${sim.color}-600 transition-colors">
+                                        <i data-lucide="${sim.icon}" class="text-${sim.color}-600 w-6 h-6 group-hover:text-white"></i>
+                                    </div>
+                                    <h3 class="text-lg font-black text-slate-800 mb-2">${sim.title}</h3>
+                                    <p class="text-slate-500 text-xs leading-relaxed mb-4">${sim.desc}</p>
+                                    <div class="flex items-center gap-2 text-${sim.color}-600 font-black text-[10px] uppercase tracking-widest">
+                                        Indítás <i data-lucide="arrow-right" class="w-3 h-3"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </section>
+            `).join('');
+            
+            lucide.createIcons();
+        }
+
+        function navigateTo(url) {
+            window.location.href = url;
+        }
+
+        function openModal(id) {
+            const sim = simulations.find(s => s.id === id);
+            if (!sim) return;
+
+            document.getElementById('modalTitle').innerText = sim.title;
+            document.getElementById('modalGrade').innerText = sim.grade + '. osztály';
+            document.getElementById('modalContent').innerText = sim.standards.content;
+            document.getElementById('modalPerformance').innerText = sim.standards.performance;
+            document.getElementById('modalGoal').innerText = sim.standards.goal;
+            
+            document.getElementById('infoModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('infoModal').classList.remove('active');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderGrid();
+            
+            // --- IDŐKORLÁT BEÁLLÍTÁSA ---
+            (function() {
+                const lejarat = new Date(2026, 1, 10, 23, 59, 59); 
+                const most = new Date();
+
+                if (most > lejarat) {
+                    document.body.innerHTML = `
+                        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; background:#f8fafc; font-family:sans-serif; text-align:center; padding:20px;">
+                            <h1 style="font-size:4rem;">⌛</h1>
+                            <h1 style="color:#1e293b; font-size:2rem; font-weight:900; margin-bottom:10px;">A HASZNÉLATI IDŐ LEJÁRT</h1>
+                            <p style="color:#64748b; max-width:400px;">A DigiFAB Fizika Labor használati ideje véget ért. Kérjük, frissítse az alkalmazást vagy vegye fel a kapcsolatot az iskola vezetőségével.</p>
+                            <div style="margin-top:20px; font-weight:bold; color:#2563eb;">.:henz:.</div>
+                        </div>
+                    `;
+                    document.body.style.overflow = "hidden";
+                }
+            })();
+        });
+    </script>
+    <script>
+        // 1. Meglévő ikonok betöltése (ha már ott van, ne másold le mégegyszer)
+        lucide.createIcons();
+
+        // 2. A PWA regisztrációs kód (ez az egyik "PWA kód")
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+
+        // 3. A QR-kód nyitó/záró funkciói
+        function openQR() {
+            document.getElementById('qrModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeQR() {
+            document.getElementById('qrModal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+
+        // --- Ide jöhet az időkorlát kódja is, amit korábban megbeszéltünk ---
+    </script>
+</body>
+
+</html>
+
+
+
